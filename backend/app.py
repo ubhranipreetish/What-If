@@ -44,8 +44,8 @@ simulator = None
 mc_engine = None
 what_if_engine = None
 
-DATA_PATH = "IPL_ball_by_ball_updated.csv"
-MATCH_DATA_PATH = "ipl.csv"
+DATA_PATH = "IPL_ball_by_ball_cleaned.csv"
+MATCH_DATA_PATH = "ipl_cleaned.csv"
 
 @app.on_event("startup")
 def startup_event():
@@ -289,7 +289,7 @@ def get_matches(year: int, team: str):
         margin_val = row.get('result_margin', None)
         margin_str = f"{int(margin_val)} {str(row.get('result', 'runs')).strip()}" if pd.notna(margin_val) and margin_val not in (None, "") else "N/A"
         results.append({
-            "id": str(idx),   # row index used as match id for ball-by-ball lookup
+            "id": str(row['new_match_id']),   # Standardized ID
             "title": f"vs {opposition}",
             "date": f"IPL {year} — Match {int(row['match_number'])}",
             "venue": str(row.get('venue', "Unknown")),
@@ -304,34 +304,13 @@ def get_matches(year: int, team: str):
 # [4] BALL-BY-BALL, ROSTERS & INNINGS DETAIL ROUTES
 # ---------------------------------------------------------
 
-def _resolve_bb_match_id(match_id: int):
-    """Resolve ipl.csv row-index match_id to ball-by-ball match_id."""
-    if match_id not in match_df.index:
-        return None
-    m_row = match_df.loc[match_id]
-    team1 = str(m_row['team1']).strip()
-    team2 = str(m_row['team2']).strip()
-
-    bbdf = df_clean[
-        (df_clean['batting_team'].isin([team1, team2])) &
-        (df_clean['bowling_team'].isin([team1, team2]))
-    ]
-    potential_ids = []
-    for mid, grp in bbdf.groupby('match_id'):
-        teams_in = set(grp['batting_team'].unique()) | set(grp['bowling_team'].unique())
-        if team1 in teams_in and team2 in teams_in:
-            potential_ids.append(mid)
-    potential_ids = sorted(potential_ids)
-    if not potential_ids:
-        return None
-
-    match_num = int(m_row['match_number'])
-    idx_pick = min(match_num - 1, len(potential_ids) - 1)
-    return potential_ids[idx_pick]
+def _resolve_bb_match_id(match_id: str):
+    """IDs are now standardized across both datasets."""
+    return match_id
 
 
 @app.get("/api/match/{match_id}/balls")
-def get_match_balls(match_id: int):
+def get_match_balls(match_id: str):
     """Return ball-by-ball data for both innings, structured for the frontend."""
     if df_clean is None:
         raise HTTPException(status_code=503, detail="Dataset not loaded")
@@ -384,14 +363,17 @@ def get_match_balls(match_id: int):
 
 
 @app.get("/api/match/{match_id}/rosters")
-def get_match_rosters(match_id: int):
+def get_match_rosters(match_id: str):
     """Return playing XI for both teams."""
     if match_df is None:
         raise HTTPException(status_code=503, detail="Dataset not loaded")
-    if match_id not in match_df.index:
+    
+    # Filter by standardized ID
+    m_row = match_df[match_df['new_match_id'] == match_id]
+    if m_row.empty:
         raise HTTPException(status_code=404, detail="Match not found")
-
-    m_row = match_df.loc[match_id]
+    
+    m_row = m_row.iloc[0]
     import ast
 
     def parse_xi(raw_str):
@@ -416,7 +398,7 @@ def get_match_rosters(match_id: int):
 
 
 @app.get("/api/match/{match_id}/innings-detail")
-def get_innings_detail(match_id: int, innings: int = 1):
+def get_innings_detail(match_id: str, innings: int = 1):
     """
     Return detailed innings breakdown:
     - wicketEvents: all wicket falls with over, score, batsman dismissed, bowler, how out
@@ -560,20 +542,61 @@ def get_innings_detail(match_id: int, innings: int = 1):
         "overSummaries": over_summaries,
     }
 
+@app.post("/api/match/{match_id}/simulate-from")
+async def simulate_from_ball(match_id: str, request: ModificationRequest):
+    """
+    Simulation mode: Start from a specific ball and run until match ends.
+    Supports overrides for the starting ball.
+    """
+    if simulator is None:
+        raise HTTPException(status_code=503, detail="Simulator not initialized")
+
+    try:
+        # 1. Get initial state from historical data
+        state = get_match_state(
+            df_clean, match_id, request.innings, request.over, request.ball_no
+        )
+
+        # 2. Apply modifications to the first ball if provided
+        if request.new_striker: state['striker'] = request.new_striker
+        if request.new_bowler: state['bowler'] = request.new_bowler
+        
+        # 3. Build context for simulation
+        lineup = generate_remaining_batting_lineup(profiles, state['batting_team'], [state['striker'], state['non_striker']])
+        bowling_plan = generate_realistic_bowling_plan(profiles, state['bowling_team'])
+
+        # 4. Simulate
+        log, final_score, final_wickets = simulator.simulate_from_context(
+            state, lineup, bowling_plan, temperature=request.temperature or 0.7
+        )
+
+        return {
+            "success": True,
+            "startScore": state['score'],
+            "startWickets": state['wickets'],
+            "startBalls": state['legal_balls'],
+            "finalScore": final_score,
+            "finalWickets": final_wickets,
+            "ballLog": log
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/metadata/match/{match_id}")
-def get_match_details(match_id: int):
+def get_match_details(match_id: str):
     if df_clean is None or raw_df is None or match_df is None:
-        raise HTTPException(status_code=503, detail="Dataset not loaded")
+        raise HTTPException(status_code=503, detail="Data not loaded")
 
-    # match_id is the DataFrame row index from ipl.csv
-    if match_id not in match_df.index:
-        raise HTTPException(status_code=404, detail="Match ID not found")
-    m_row = match_df.loc[match_id]
-
+    # Directly filter by standardized ID
+    m_row = match_df[match_df['new_match_id'] == match_id]
+    if m_row.empty:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    m_row = m_row.iloc[0]
     team1_name = str(m_row['team1']).strip()
     team2_name = str(m_row['team2']).strip()
-    season_num = int(m_row['season'])
-    calendar_year = 2007 + season_num
+    calendar_year = str(m_row['match_date'])[:4]
 
     def team_color(t):
         t = str(t)
@@ -589,47 +612,8 @@ def get_match_details(match_id: int):
         if "Pune" in t: return "#9C27B0"
         return "#00e5ff"
 
-    # The ball-by-ball dataset uses a different match_id column
-    # Try to find via season + team names
-    bbdf = df_clean[
-        (df_clean['batting_team'].isin([team1_name, team2_name])) &
-        (df_clean['bowling_team'].isin([team1_name, team2_name]))
-    ]
-    
-    # Narrow further by finding a block of contiguous match IDs that match both teams
-    # Group by match_id in ball-by-ball
-    potential_ids = []
-    for mid, grp in bbdf.groupby('match_id'):
-        teams_in_match = set(grp['batting_team'].unique()) | set(grp['bowling_team'].unique())
-        if team1_name in teams_in_match and team2_name in teams_in_match:
-            potential_ids.append(mid)
-    
-    # Pick match_number-th occurrence (1-indexed)
-    match_num = int(m_row['match_number'])
-    # Sort potential matches to try to align by match order
-    potential_ids = sorted(potential_ids)
-
-    # Try to find the match at the right season position
-    # Use a rough heuristic: season matches appear in order, pick the match_number-th
-    season_matches_for_these_teams = []
-    season_bbdf = df_clean[df_clean['match_id'].isin(potential_ids)]
-    for mid in potential_ids:
-        grp = season_bbdf[season_bbdf['match_id'] == mid]
-        if not grp.empty:
-            season_matches_for_these_teams.append(mid)
-    
-    # Pick target match_id
-    target_bbid = None
-    if season_matches_for_these_teams:
-        idx_pick = min(match_num - 1, len(season_matches_for_these_teams) - 1)
-        target_bbid = season_matches_for_these_teams[idx_pick]
-
-    # Fallback: just use first available
-    if target_bbid is None and potential_ids:
-        target_bbid = potential_ids[0]
-
-    if target_bbid is None:
-        raise HTTPException(status_code=400, detail="No ball-by-ball data found for this match.")
+    # Since IDs are standardized, target_bbid is just match_id
+    target_bbid = match_id
 
     # 1. Get 2nd innings data
     innings_df = df_clean[(df_clean['match_id'] == target_bbid) & (df_clean['innings'] == 2)].copy()
