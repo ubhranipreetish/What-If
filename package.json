@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "backend": "cd backend && venv/bin/python app.py",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

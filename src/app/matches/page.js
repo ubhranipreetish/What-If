@@ -271,7 +271,7 @@ export default function MatchHub() {
                         {filteredMatches.map((match, i) => (
                             <button
                                 key={match.id}
-                                onClick={() => router.push(`/simulation/${match.id}`)}
+                                onClick={() => router.push(`/matches/${match.id}`)}
                                 className="group relative w-full text-left rounded-2xl overflow-hidden glass transition-all duration-500 ease-out cursor-pointer hover:scale-[1.02] hover:border-[rgba(0,229,255,0.4)] hover:shadow-[0_0_30px_rgba(0,229,255,0.2)] animate-slide-up"
                                 style={{ animationDelay: `${i * 100}ms`, opacity: 0, animationFillMode: "forwards" }}
                             >
