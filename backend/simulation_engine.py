@@ -8,27 +8,50 @@ from collections import defaultdict
 # ==========================================================
 def clean_and_prepare_data(deliveries_path, matches_path=None, remove_super_overs=True):
     """
-    Cleans IPL ball-by-ball data and prepares a simulation-ready dataset with:
-    - Correct legal ball tracking
-    - Accurate over/ball extraction (float-safe)
-    - Proper phase classification (0-indexed overs)
-    - Cumulative match state variables
+    Cleans IPL ball-by-ball data and prepares a simulation-ready dataset.
+    Updated for new schema: runs_batter, runs_extras, runs_total, etc.
     """
     print("📂 Loading deliveries dataset...")
-    df = pd.read_csv(deliveries_path)
+    # Load with low_memory=False because of mixed types in some metadata columns
+    df = pd.read_csv(deliveries_path, low_memory=False)
 
-    columns_to_drop = ['other_wicket_type', 'other_player_dismissed']
-    df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
+    # Standardize column names from new schema to expected engine names
+    # batter -> striker, non_striker -> non_striker, bowler -> bowler
+    # runs_batter -> runs_off_bat, runs_extras -> extras, runs_total -> total_runs_this_ball
+    # extra_type (wides, noballs) -> separate flags
+    
+    if 'batter' in df.columns:
+        df.rename(columns={'batter': 'striker'}, inplace=True)
+    if 'runs_batter' in df.columns:
+        df.rename(columns={'runs_batter': 'runs_off_bat'}, inplace=True)
+    if 'runs_extras' in df.columns:
+        df.rename(columns={'runs_extras': 'extras'}, inplace=True)
+    if 'runs_total' in df.columns:
+        df.rename(columns={'runs_total': 'total_runs_this_ball'}, inplace=True)
+    
+    # Identify Wickets
+    if 'player_out' in df.columns:
+        df['is_wicket'] = df['player_out'].notna().astype(int)
+    else:
+        df['is_wicket'] = df['player_dismissed'].notna().astype(int) if 'player_dismissed' in df.columns else 0
 
-    extras_cols = ['wides', 'noballs', 'byes', 'legbyes', 'penalty']
-    for col in extras_cols:
-        if col in df.columns:
-            df[col] = df[col].fillna(0)
+    # Identify Wides/No Balls for legal delivery tracking
+    if 'extra_type' in df.columns:
+        df['wides'] = (df['extra_type'] == 'wides').astype(int)
+        df['noballs'] = (df['extra_type'] == 'noballs').astype(int)
+    else:
+        for col in ['wides', 'noballs']:
+            if col not in df.columns: df[col] = 0
 
-    df['is_wicket'] = df['player_dismissed'].notna().astype(int)
-
-    df['over'] = np.floor(df['ball']).astype(int)
-    df['ball_no'] = np.round((df['ball'] - df['over']) * 10).astype(int)
+    # Over/Ball logic - new dataset has 'over' (0-indexed) and 'ball_no' (0.1 format in some cols)
+    # We want 'over' (int 0-19) and 'ball_no' (int 1-6+)
+    # If the file has 'ball', that's usually the index within the over.
+    if 'ball' in df.columns:
+        df['ball_no'] = df['ball'].astype(int)
+    else:
+        # Fallback to float extraction if only ball_no exists as 0.1
+        if 'ball_no' in df.columns:
+             df['ball_no'] = ((df['ball_no'] - df['over']) * 10).round().astype(int)
 
     if remove_super_overs:
         df = df[df['innings'] <= 2]
@@ -36,7 +59,6 @@ def clean_and_prepare_data(deliveries_path, matches_path=None, remove_super_over
     print("🔄 Sorting match flow...")
     df = df.sort_values(by=['match_id', 'innings', 'over', 'ball_no']).reset_index(drop=True)
 
-    df['total_runs_this_ball'] = df['runs_off_bat'] + df['extras']
     df['is_legal_delivery'] = ((df['wides'] == 0) & (df['noballs'] == 0)).astype(int)
 
     print("📊 Calculating cumulative states...")
@@ -53,14 +75,6 @@ def clean_and_prepare_data(deliveries_path, matches_path=None, remove_super_over
     df['phase'] = df['over'].apply(get_phase)
     df['balls_remaining'] = 120 - df['legal_balls_bowled']
 
-    if matches_path:
-        print("🔗 Merging match results...")
-        df_matches = pd.read_csv(matches_path)
-        if 'id' in df_matches.columns and 'winner' in df_matches.columns:
-            df = df.merge(df_matches[['id', 'winner']], left_on='match_id', right_on='id', how='left')
-            df.rename(columns={'winner': 'match_winner'}, inplace=True)
-            df.drop(columns=['id'], inplace=True)
-
     max_balls_per_innings = df.groupby(['match_id', 'innings'])['legal_balls_bowled'].max()
     if (max_balls_per_innings > 120).any():
         print("⚠️ Warning: Some innings exceed 120 legal balls. Capping to 120.")
@@ -72,9 +86,6 @@ def clean_and_prepare_data(deliveries_path, matches_path=None, remove_super_over
         'bowling_team', 'striker', 'non_striker', 'bowler', 'runs_off_bat', 'extras', 
         'total_runs_this_ball', 'is_wicket'
     ]
-
-    if 'match_winner' in df.columns:
-        core_columns.append('match_winner')
 
     df_clean = df[core_columns]
     print("✅ Milestone 0 Complete — Simulation Ready")
@@ -186,9 +197,12 @@ def generate_remaining_batting_lineup(raw_df, match_df, initial_state):
         ((innings_df['over_idx'] == state_over) & (innings_df['ball_idx'] < state_ball))
     )
 
+    # Handle new schema player_out vs old schema player_dismissed
+    p_out_col = 'player_out' if 'player_out' in innings_df.columns else 'player_dismissed'
+
     dismissed_players = innings_df.loc[
-        mask_before & innings_df['player_dismissed'].notna(), 
-        'player_dismissed'
+        mask_before & innings_df[p_out_col].notna(), 
+        p_out_col
     ].unique().tolist()
     
     current_pair = [initial_state['striker'], initial_state['non_striker']]
@@ -212,16 +226,37 @@ def derive_player_profiles_v5(df, prior_weight=25):
     for col in ['wides', 'noballs', 'byes', 'legbyes', 'penalty']:
         if col in df.columns: df[col] = df[col].fillna(0)
 
+    # Ensure essential columns exist for profiling
     if 'is_wicket' not in df.columns:
-        df['is_wicket'] = df['player_dismissed'].notna().astype(int)
+        if 'player_out' in df.columns:
+            df['is_wicket'] = df['player_out'].notna().astype(int)
+        elif 'player_dismissed' in df.columns:
+            df['is_wicket'] = df['player_dismissed'].notna().astype(int)
+        else:
+            df['is_wicket'] = 0
+
+    if 'wides' not in df.columns:
+        if 'extra_type' in df.columns:
+            df['wides'] = (df['extra_type'] == 'wides').astype(int)
+            df['noballs'] = (df['extra_type'] == 'noballs').astype(int)
+        else:
+            df['wides'] = 0
+            df['noballs'] = 0
 
     if 'phase' not in df.columns:
-        df['over'] = np.floor(df['ball']).astype(int)
+        # Use existing 'over' column if available (new schema), otherwise extract from 'ball' (old schema 0.1 format)
+        if 'over' not in df.columns and 'ball' in df.columns:
+             df['over'] = np.floor(df['ball']).astype(int)
+        
         def get_phase(over):
             if over <= 5: return 'powerplay'
             elif over <= 14: return 'middle'
             else: return 'death'
-        df['phase'] = df['over'].apply(get_phase)
+        
+        if 'over' in df.columns:
+            df['phase'] = df['over'].astype(int).apply(get_phase)
+        else:
+            df['phase'] = 'middle' # extreme fallback
 
     phases = ['powerplay', 'middle', 'death']
 
@@ -245,10 +280,16 @@ def derive_player_profiles_v5(df, prior_weight=25):
 
     # Legal Ball Outcome Model
     df_legal = df[df['delivery_type'] == 'legal'].copy()
+    
+    # Mapping outcome labels
+    # Note: Using .get for robustness if byes/legbyes columns are missing
+    df_legal['is_bye'] = (df_legal.get('extra_type') == 'byes') | (df_legal.get('byes', 0) > 0)
+    df_legal['is_legbye'] = (df_legal.get('extra_type') == 'legbyes') | (df_legal.get('legbyes', 0) > 0)
+
     df_legal['outcome'] = np.select(
         [
             df_legal['is_wicket'] == 1,
-            (df_legal['byes'] > 0) | (df_legal['legbyes'] > 0),
+            df_legal['is_bye'] | df_legal['is_legbye'],
             df_legal['runs_off_bat'] == 0, df_legal['runs_off_bat'] == 1, df_legal['runs_off_bat'] == 2,
             df_legal['runs_off_bat'] == 3, df_legal['runs_off_bat'] == 4, df_legal['runs_off_bat'] == 6
         ],
@@ -281,8 +322,12 @@ def derive_player_profiles_v5(df, prior_weight=25):
 
                 phase_probs = row / total if total > 0 else career_probs
                 adjusted = career_probs * (phase_probs / career_probs.replace(0, 1e-6))
+
+                if phase in global_outcome_probs.index:
+                    smoothed = (adjusted + (prior_weight * global_outcome_probs.loc[phase])) / (adjusted.sum() + prior_weight)
+                else:
+                    smoothed = (adjusted + prior_weight/len(adjusted)) / (adjusted.sum() + prior_weight)
                 
-                smoothed = (adjusted + (prior_weight * global_outcome_probs.loc[phase])) / (adjusted.sum() + prior_weight)
                 profiles[player][phase] = (smoothed / smoothed.sum()).to_dict()
                 profiles[player][phase]['_balls_recorded'] = int(total)
 
@@ -419,6 +464,9 @@ class SingleMatchSimulator:
             aggression = max(0.7, min(aggression * np.random.normal(1.0, 0.07), 2.2))
             self.engine.current_wickets = state['wickets']
 
+            # Safety break to prevent infinite loops (e.g. constant wides)
+            if len(match_log) > 500: break
+
             outcome = self.engine.simulate_delivery(
                 striker=state['striker'], bowler=state['current_bowler'],
                 phase=state['phase'], aggression_factor=aggression
@@ -466,7 +514,8 @@ class SingleMatchSimulator:
             if detailed:
                 match_log.append({
                     "score": state['score'], "wickets": state['wickets'],
-                    "outcome": outcome, "aggression": round(aggression, 2), "confidence": round(striker_confidence, 2)
+                    "outcome": outcome, "aggression": round(aggression, 2), "confidence": round(striker_confidence, 2),
+                    "striker": state['striker'], "bowler": state['current_bowler']
                 })
 
         return state['score'], state['wickets'], match_log
@@ -484,6 +533,9 @@ class SingleMatchSimulator:
               striker=state['striker'], bowler=state['current_bowler'],
               phase=state['phase'], aggression_factor=1.0
           )
+
+          # Safety break
+          if len(match_log) > 500: break
 
           is_legal, runs_this_ball = True, 0
 
@@ -503,7 +555,13 @@ class SingleMatchSimulator:
                   state['striker'], state['non_striker'] = state['non_striker'], state['striker']
                   if active_bowlers: state['current_bowler'] = active_bowlers.pop(0)
 
-          match_log.append({"score": state['score'], "wickets": state['wickets'], "outcome": outcome})
+          match_log.append({
+              "score": state['score'], 
+              "wickets": state['wickets'], 
+              "outcome": outcome,
+              "striker": state['striker'],
+              "bowler": state['current_bowler']
+          })
 
       return state['score'], state['wickets'], match_log
 
@@ -555,13 +613,28 @@ class WhatIfEngine:
 
     def apply_modification(self, state, modification):
         state = state.copy()
-        if modification.get("new_runs") is not None: state['score'] += modification["new_runs"]
-        if modification.get("force_wicket"): state['wickets'] += 1
-        if modification.get("new_striker"): state['striker'] = modification["new_striker"]
-        if modification.get("new_bowler"): state['current_bowler'] = modification["new_bowler"]
         
-        state['balls_remaining'] -= 1
-        state['legal_balls_bowled'] += 1
+        # Determine if this was a legal delivery
+        is_wide = modification.get("is_wide", False)
+        is_nb = modification.get("is_nb", False)
+        is_legal = not (is_wide or is_nb)
+
+        if modification.get("new_runs") is not None: 
+            state['score'] += modification["new_runs"]
+        
+        if modification.get("force_wicket"): 
+            state['wickets'] += 1
+        
+        if modification.get("new_striker"): 
+            state['striker'] = modification["new_striker"]
+        
+        if modification.get("new_bowler"): 
+            state['current_bowler'] = modification["new_bowler"]
+        
+        if is_legal:
+            state['balls_remaining'] -= 1
+            state['legal_balls_bowled'] += 1
+            
         return state
 
     def simulate_counterfactual(self, modified_state):
