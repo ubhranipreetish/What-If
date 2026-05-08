@@ -911,8 +911,11 @@ class SingleMatchSimulator:
               'target': state.get('target')
           }
 
+          current_striker = state['striker']
+          current_bowler = state['current_bowler']
+
           outcome = self.engine.simulate_most_probable_delivery(
-              striker=state['striker'], bowler=state['current_bowler'],
+              striker=current_striker, bowler=current_bowler,
               phase=state['phase'], aggression_factor=1.0,
               venue=venue, form_mults=form_mults,
               match_state=match_state, impact_score=impact_score
@@ -936,7 +939,13 @@ class SingleMatchSimulator:
                   state['striker'], state['non_striker'] = state['non_striker'], state['striker']
                   if active_bowlers: state['current_bowler'] = active_bowlers.pop(0)
 
-          match_log.append({"score": state['score'], "wickets": state['wickets'], "outcome": outcome})
+          match_log.append({
+              "score": state['score'], 
+              "wickets": state['wickets'], 
+              "outcome": outcome,
+              "striker": current_striker,
+              "bowler": current_bowler
+          })
 
       return state['score'], state['wickets'], match_log
 

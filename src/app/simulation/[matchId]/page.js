@@ -123,11 +123,10 @@ export default function SimulationPage() {
   // ── Fetch match metadata + balls + rosters ───────────────────
   useEffect(() => {
     setLoading(true);
-    const mId = parseInt(matchId);
     Promise.all([
-      fetch(`${API}/api/metadata/match/${mId}`).then(r => r.json()).catch(() => null),
-      fetch(`${API}/api/match/${mId}/balls`).then(r => r.json()).catch(() => null),
-      fetch(`${API}/api/match/${mId}/rosters`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/metadata/match/${matchId}`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/match/${matchId}/balls`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/match/${matchId}/rosters`).then(r => r.json()).catch(() => null),
     ]).then(([meta, ballData, rosterData]) => {
       if (!meta || !ballData) { setError("Could not load match data. Ensure the backend is running."); setLoading(false); return; }
       setMatchMeta(meta);
@@ -197,7 +196,7 @@ export default function SimulationPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          match_id: parseInt(matchId),
+          match_id: matchId,
           innings: inningsNum,
           over: selectedBall.over,
           ball_no: selectedBall.ball,

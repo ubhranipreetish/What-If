@@ -40,10 +40,9 @@ export default function MatchDetailPage() {
   // Load match metadata + ball data on mount
   useEffect(() => {
     setLoading(true);
-    const mId = parseInt(matchId);
     Promise.all([
-      fetch(`${API}/api/metadata/match/${mId}`).then(r => r.json()).catch(() => null),
-      fetch(`${API}/api/match/${mId}/balls`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/metadata/match/${matchId}`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/match/${matchId}/balls`).then(r => r.json()).catch(() => null),
     ]).then(([meta, balls]) => {
       if (!meta) { setError("Could not load match. Is backend running?"); setLoading(false); return; }
       setMatchMeta(meta);
@@ -56,7 +55,7 @@ export default function MatchDetailPage() {
   useEffect(() => {
     if (!matchId) return;
     setLoadingInnings(true);
-    fetch(`${API}/api/match/${parseInt(matchId)}/innings-detail?innings=${activeInnings}`)
+    fetch(`${API}/api/match/${matchId}/innings-detail?innings=${activeInnings}`)
       .then(r => r.json())
       .then(data => { setInningsData(data); setLoadingInnings(false); })
       .catch(() => { setInningsData(null); setLoadingInnings(false); });

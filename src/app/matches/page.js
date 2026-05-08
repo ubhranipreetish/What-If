@@ -230,8 +230,8 @@ export default function MatchHub() {
                                         key={opp.name}
                                         onClick={() => setSelectedOpponent(selectedOpponent?.name === opp.name ? null : opp)}
                                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${selectedOpponent?.name === opp.name
-                                                ? "border-2 scale-105 text-white shadow-lg"
-                                                : "border border-white/10 text-[#c4cad6] glass-light hover:bg-white/5"
+                                            ? "border-2 scale-105 text-white shadow-lg"
+                                            : "border border-white/10 text-[#c4cad6] glass-light hover:bg-white/5"
                                             }`}
                                         style={{
                                             borderColor: selectedOpponent?.name === opp.name ? opp.color : "",
@@ -271,7 +271,7 @@ export default function MatchHub() {
                         {filteredMatches.map((match, i) => (
                             <button
                                 key={match.id}
-                                onClick={() => router.push(`/matches/${match.id}`)}
+                                onClick={() => router.push(`/simulation/${match.id}`)}
                                 className="group relative w-full text-left rounded-2xl overflow-hidden glass transition-all duration-500 ease-out cursor-pointer hover:scale-[1.02] hover:border-[rgba(0,229,255,0.4)] hover:shadow-[0_0_30px_rgba(0,229,255,0.2)] animate-slide-up"
                                 style={{ animationDelay: `${i * 100}ms`, opacity: 0, animationFillMode: "forwards" }}
                             >

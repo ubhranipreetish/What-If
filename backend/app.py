@@ -81,7 +81,7 @@ def startup_event():
 # API MODELS
 # ---------------------------------------------------------
 class ModificationRequest(BaseModel):
-    match_id: int
+    match_id: str
     innings: int
     over: int
     ball_no: int
@@ -288,9 +288,28 @@ def get_matches(year: int, team: str):
         opposition = row['team2'] if str(row['team1']).strip() == team.strip() else row['team1']
         margin_val = row.get('result_margin', None)
         margin_str = f"{int(margin_val)} {str(row.get('result', 'runs')).strip()}" if pd.notna(margin_val) and margin_val not in (None, "") else "N/A"
+        def team_color(t):
+            t = str(t)
+            if "Chennai" in t: return "#F9CD05"
+            if "Mumbai" in t: return "#004BA0"
+            if "Royal" in t: return "#D4213D"
+            if "Kolkata" in t: return "#3A225D"
+            if "Gujarat" in t: return "#1B2133"
+            if "Rajasthan" in t: return "#EB1B99"
+            if "Sunrisers" in t or "Hyderabad" in t or "Deccan" in t: return "#FF822A"
+            if "Punjab" in t: return "#D71920"
+            if "Delhi" in t: return "#0078BC"
+            if "Pune" in t: return "#9C27B0"
+            return "#00e5ff"
+
+        t1 = str(row['team1']).strip()
+        t2 = str(row['team2']).strip()
+        
         results.append({
-            "id": str(row['new_match_id']),   # Standardized ID
+            "id": str(row['new_match_id']),
             "title": f"vs {opposition}",
+            "team1": {"name": t1, "short": t1[:3].upper(), "color": team_color(t1)},
+            "team2": {"name": t2, "short": t2[:3].upper(), "color": team_color(t2)},
             "date": f"IPL {year} — Match {int(row['match_number'])}",
             "venue": str(row.get('venue', "Unknown")),
             "winner": str(row.get('winner', "Unknown")),
@@ -556,30 +575,44 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
         state = get_match_state(
             df_clean, match_id, request.innings, request.over, request.ball_no
         )
+        
+        # map state keys to what simulator expects
+        state['score'] = state.pop('current_score')
+        state['wickets'] = state.pop('current_wickets')
+        state['current_bowler'] = state['bowler']
 
         # 2. Apply modifications to the first ball if provided
         if request.new_striker: state['striker'] = request.new_striker
-        if request.new_bowler: state['bowler'] = request.new_bowler
+        if request.new_bowler: state['current_bowler'] = request.new_bowler
         
         # 3. Build context for simulation
-        lineup = generate_remaining_batting_lineup(profiles, state['batting_team'], [state['striker'], state['non_striker']])
-        bowling_plan = generate_realistic_bowling_plan(profiles, state['bowling_team'])
+        lineup = generate_remaining_batting_lineup(raw_df, match_df, state)
+        
+        # Build bowling plan
+        innings_df = df_clean[
+            (df_clean['match_id'] == match_id) &
+            (df_clean['innings'] == request.innings)
+        ]
+        all_bowlers = innings_df['bowler'].unique().tolist()
+        bowling_plan = [all_bowlers[i % max(1, len(all_bowlers))]
+                        for i in range(max(0, state['balls_remaining'] // 6))]
 
-        # 4. Simulate
-        log, final_score, final_wickets = simulator.simulate_from_context(
-            state, lineup, bowling_plan, temperature=request.temperature or 0.7
+        # 4. Simulate most probable trajectory
+        final_score, final_wickets, log = simulator.simulate_most_probable(
+            state, lineup, bowling_plan
         )
 
         return {
             "success": True,
             "startScore": state['score'],
             "startWickets": state['wickets'],
-            "startBalls": state['legal_balls'],
+            "startBalls": state['legal_balls_bowled'],
             "finalScore": final_score,
             "finalWickets": final_wickets,
             "ballLog": log
         }
     except Exception as e:
+        print(f"Simulation Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
