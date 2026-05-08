@@ -118,7 +118,12 @@ export default function SimulationPage() {
   const simIntervalRef = useRef(null);
   const simQueueRef = useRef([]);
   const simStateRef = useRef(null);  // live sim state for win checks
+  const simRunningRef = useRef(false);
+  const simSpeedRef = useRef(simSpeed);
   const bottomRef = useRef(null);
+  const feedRef = useRef(null);
+
+  const setSpeed = (s) => { setSimSpeed(s); simSpeedRef.current = s; };
 
   // ── Fetch match metadata + balls + rosters ───────────────────
   useEffect(() => {
@@ -136,48 +141,83 @@ export default function SimulationPage() {
     });
   }, [matchId]);
 
-  // ── Auto-scroll to bottom as sim plays ─────────────────────
+  // ── Auto-scroll simulation feed ─────────────────────
   useEffect(() => {
-    if (simRunning) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (simRunning && feedRef.current) {
+      feedRef.current.scrollTop = feedRef.current.scrollHeight;
+    }
   }, [simBalls, simRunning]);
 
   // ── Simulation runner ─────────────────────────────────────
   const stopSim = useCallback(() => {
-    clearInterval(simIntervalRef.current);
+    clearTimeout(simIntervalRef.current);
+    simRunningRef.current = false;
     setSimRunning(false);
   }, []);
 
   const startSimTick = useCallback(() => {
-    clearInterval(simIntervalRef.current);
-    simIntervalRef.current = setInterval(() => {
+    clearTimeout(simIntervalRef.current);
+    simRunningRef.current = true;
+    setSimRunning(true);
+
+    const tick = () => {
+      if (!simRunningRef.current) return;
       if (simQueueRef.current.length === 0) {
-        clearInterval(simIntervalRef.current);
+        simRunningRef.current = false;
         setSimRunning(false);
         return;
       }
+      
       const next = simQueueRef.current.shift();
       setSimBalls(prev => [...prev, next]);
       simStateRef.current = next;
 
-      // Check win/loss condition
       const st = simStateRef.current;
       if (st.target && st.score >= st.target) {
-        clearInterval(simIntervalRef.current);
+        simRunningRef.current = false;
         setSimRunning(false);
-        setWinnerDeclared({ team: st.battingTeam, type: "chase", score: st.score, wickets: st.wickets });
+        setWinnerDeclared({ team: st.battingTeam, type: "chase", score: st.score, wickets: st.wickets, target: st.target });
         return;
       }
       if (st.wickets >= 10 || st.legalBalls >= 120) {
-        clearInterval(simIntervalRef.current);
+        simRunningRef.current = false;
         setSimRunning(false);
         if (st.target) {
           setWinnerDeclared({ team: st.bowlingTeam, type: "defend", score: st.score, wickets: st.wickets, target: st.target });
         }
         return;
       }
-    }, simSpeed);
-    setSimRunning(true);
-  }, [simSpeed]);
+
+      let currentSpeed = simSpeedRef.current || 700;
+      let delay = currentSpeed;
+      
+      const outcome = String(next.outcome);
+      if (outcome === "4" || outcome === "6" || outcome === "W") {
+        delay += 1000;
+      }
+
+      if (!next.isOverride && next.legalBalls > 0 && next.legalBalls % 6 === 0 && simQueueRef.current.length > 0) {
+        const nextBall = simQueueRef.current[0];
+        if (nextBall) {
+          delay += 1500;
+          setTimeout(() => {
+            if (simRunningRef.current) {
+              setSimBalls(prev => [...prev, {
+                isOverBreak: true,
+                message: `End of Over ${Math.floor(next.legalBalls / 6)}. Next bowler: ${nextBall.bowler}`,
+                score: st.score,
+                wickets: st.wickets,
+              }]);
+            }
+          }, delay - 800);
+        }
+      }
+
+      simIntervalRef.current = setTimeout(tick, delay);
+    };
+
+    simIntervalRef.current = setTimeout(tick, simSpeedRef.current || 700);
+  }, []);
 
   const handleSimulate = useCallback(async () => {
     if (!selectedBall) return;
@@ -204,6 +244,7 @@ export default function SimulationPage() {
           force_wicket: outcomeOverride === "W",
           new_striker: newStriker || null,
           new_bowler: newBowler || null,
+          outcome_override: outcomeOverride,
         }),
       });
 
@@ -233,9 +274,9 @@ export default function SimulationPage() {
         isWicket: outcomeOverride === "W",
         extraType: isOvWide ? "wide" : isOvNb ? "nb" : null,
         totalRuns: runsOverride ?? selectedBall.totalRuns,
-        score: score + (runsOverride ?? 0),
-        wickets: wickets + (outcomeOverride === "W" ? 1 : 0),
-        legalBalls: legalBalls + (isOvLegal ? 1 : 0),
+        score: data.startScore,
+        wickets: data.startWickets,
+        legalBalls: data.startBalls,
         target,
         striker: newStriker || selectedBall.striker,
         bowler: newBowler || selectedBall.bowler,
@@ -270,12 +311,11 @@ export default function SimulationPage() {
         if (isWicket) wickets++;
         if (isLegal) legalBalls++;
 
-        // Correct display of over.ball
-        const overNum = Math.floor((legalBalls - 1) / 6) + 1;
+        const overNum = Math.floor((legalBalls - 1) / 6);
         const ballInOver = ((legalBalls - 1) % 6) + 1;
-
+        
         queue.push({
-          over: isLegal ? overNum : Math.floor(legalBalls / 6) + 1,
+          over: isLegal ? overNum : Math.floor(legalBalls / 6),
           ball: isLegal ? ballInOver : (legalBalls % 6) + 1,
           outcome,
           runs: runsThisBall,
@@ -643,9 +683,9 @@ export default function SimulationPage() {
                   {/* Speed selector */}
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-[9px] font-mono text-[#6b7280] uppercase tracking-wider">Sim Speed</span>
-                    {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 700 }, { label: "Slow", ms: 1200 }].map(s => (
+                    {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 800 }, { label: "Slow", ms: 1500 }].map(s => (
                       <button key={s.ms}
-                        onClick={() => setSimSpeed(s.ms)}
+                        onClick={() => setSpeed(s.ms)}
                         className={`flex-1 py-1.5 rounded-lg text-[10px] font-mono transition-all ${simSpeed === s.ms ? "bg-[#00e5ff]/15 text-[#00e5ff] border border-[#00e5ff]/30" : "glass-light text-[#6b7280] border border-white/10 hover:text-white"}`}>
                         {s.label}
                       </button>
@@ -667,8 +707,8 @@ export default function SimulationPage() {
 
           {/* ── Simulation Controls (when sim is active) ── */}
           {simMode && (
-            <div className="glass rounded-2xl p-4 border border-[#a855f7]/20 shadow-[0_0_20px_rgba(168,85,247,0.08)]">
-              <div className="flex items-center justify-between mb-3">
+            <div className="glass rounded-2xl p-4 border border-[#a855f7]/20 shadow-[0_0_20px_rgba(168,85,247,0.08)] flex flex-col gap-4">
+              <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-mono text-[#a855f7] tracking-widest uppercase">Alternate Timeline</p>
                   <h3 className="text-white font-black text-sm">
@@ -679,21 +719,47 @@ export default function SimulationPage() {
                 <div className={`w-2.5 h-2.5 rounded-full ${simRunning ? "bg-[#00ff88] animate-pulse" : "bg-[#ff3b5c]"}`} />
               </div>
 
-              <div className="flex gap-2 mb-3">
+              {/* LIVE SCORE DISPLAY */}
+              {simBalls.length > 0 && (() => {
+                const last = simBalls[simBalls.length - 1];
+                const score = last.score ?? 0;
+                const wickets = last.wickets ?? 0;
+                const legalBalls = last.legalBalls ?? 0;
+                const overs = Math.floor(legalBalls / 6) + "." + (legalBalls % 6);
+                const rr = legalBalls > 0 ? ((score / legalBalls) * 6).toFixed(2) : "0.00";
+                const rrr = target && legalBalls < 120
+                  ? score >= target ? "0.00" : (((target - score) / Math.max(1, 120 - legalBalls)) * 6).toFixed(2)
+                  : null;
+                return (
+                  <div className="glass-light rounded-xl p-4 text-center border border-white/[0.06]">
+                    <p className="text-[10px] font-mono text-[#6b7280] uppercase tracking-widest mb-1">Current Score</p>
+                    <div className="text-4xl font-black text-white mb-2">{score}<span className="text-[#94a3b8] text-2xl">/{wickets}</span></div>
+                    <div className="flex items-center justify-center gap-4 text-xs font-mono">
+                      <div><span className="text-[#6b7280]">OVR</span> <span className="text-white font-bold">{overs}</span></div>
+                      <div><span className="text-[#6b7280]">CRR</span> <span className="text-white font-bold">{rr}</span></div>
+                      {rrr && (
+                        <div><span className="text-[#6b7280]">RRR</span> <span className={`font-bold ${parseFloat(rrr) > 10 ? "text-[#ff3b5c]" : parseFloat(rrr) > 8 ? "text-[#ffd700]" : "text-[#00ff88]"}`}>{rrr}</span></div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex gap-2">
                 {simRunning
-                  ? <button onClick={handlePause} className="flex-1 py-2 rounded-xl border border-[#ff6b35]/30 text-[#ff6b35] text-xs font-mono font-bold hover:bg-[#ff6b35]/10 transition-all">⏸ PAUSE</button>
-                  : <button onClick={handleResume} disabled={winnerDeclared !== null} className="flex-1 py-2 rounded-xl border border-[#00ff88]/30 text-[#00ff88] text-xs font-mono font-bold hover:bg-[#00ff88]/10 transition-all disabled:opacity-40">▶ RESUME</button>
+                  ? <button onClick={handlePause} className="flex-1 py-2.5 rounded-xl border border-[#ff6b35]/30 text-[#ff6b35] text-xs font-mono font-bold hover:bg-[#ff6b35]/10 transition-all">⏸ PAUSE</button>
+                  : <button onClick={handleResume} disabled={winnerDeclared !== null} className="flex-1 py-2.5 rounded-xl border border-[#00ff88]/30 text-[#00ff88] text-xs font-mono font-bold hover:bg-[#00ff88]/10 transition-all disabled:opacity-40">▶ RESUME</button>
                 }
-                <button onClick={handleChangeBall} className="flex-1 py-2 rounded-xl border border-[#00e5ff]/30 text-[#00e5ff] text-xs font-mono font-bold hover:bg-[#00e5ff]/10 transition-all">↺ CHANGE BALL</button>
+                <button onClick={handleChangeBall} className="flex-1 py-2.5 rounded-xl border border-[#00e5ff]/30 text-[#00e5ff] text-xs font-mono font-bold hover:bg-[#00e5ff]/10 transition-all">↺ CHANGE BALL</button>
               </div>
 
               {/* Speed during sim */}
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-mono text-[#6b7280] uppercase">Speed</span>
-                {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 700 }, { label: "Slow", ms: 1200 }].map(s => (
+                {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 800 }, { label: "Slow", ms: 1500 }].map(s => (
                   <button key={s.ms}
-                    onClick={() => { setSimSpeed(s.ms); if (simRunning) { stopSim(); setTimeout(startSimTick, 50); } }}
-                    className={`flex-1 py-1 rounded-lg text-[9px] font-mono transition-all ${simSpeed === s.ms ? "bg-[#a855f7]/15 text-[#a855f7] border border-[#a855f7]/30" : "glass-light text-[#6b7280] border border-white/10"}`}>
+                    onClick={() => { setSpeed(s.ms); }}
+                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-mono transition-all ${simSpeed === s.ms ? "bg-[#a855f7]/15 text-[#a855f7] border border-[#a855f7]/30" : "glass-light text-[#6b7280] border border-white/10"}`}>
                     {s.label}
                   </button>
                 ))}
@@ -715,74 +781,68 @@ export default function SimulationPage() {
                   : `Defended the total — batting side fell for ${winnerDeclared.score}/${winnerDeclared.wickets}`
                 }
               </p>
+              {simResult?.winProb !== null && winnerDeclared.type === "chase" && (
+                <div className="mt-3 inline-block bg-[#00ff88]/10 px-3 py-1.5 rounded-lg border border-[#00ff88]/30">
+                  <span className="text-xs font-mono text-[#00ff88]/70 uppercase tracking-wider">Win Probability: </span>
+                  <span className="text-sm font-black text-[#00ff88]">{simResult.winProb.toFixed(1)}%</span>
+                </div>
+              )}
+              {simResult?.winProb !== null && winnerDeclared.type === "defend" && (
+                <div className="mt-3 inline-block bg-[#00ff88]/10 px-3 py-1.5 rounded-lg border border-[#00ff88]/30">
+                  <span className="text-xs font-mono text-[#00ff88]/70 uppercase tracking-wider">Win Probability: </span>
+                  <span className="text-sm font-black text-[#00ff88]">{(100 - simResult.winProb).toFixed(1)}%</span>
+                </div>
+              )}
             </div>
           )}
 
           {/* ── Live Simulation Ball Feed ───────────────── */}
           {simMode && (
-            <div className="glass rounded-2xl p-4 flex-1 max-h-[500px] overflow-y-auto">
+            <div ref={feedRef} className="glass rounded-2xl p-4 flex-1 max-h-[500px] overflow-y-auto scroll-smooth">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[10px] font-mono text-[#a855f7] tracking-widest uppercase">Alternate Ball Feed</p>
                 <p className="text-[10px] font-mono text-[#6b7280]">{simBalls.length} balls played</p>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {simBalls.map((ball, i) => {
+                  if (ball.isOverBreak) {
+                     return (
+                       <div key={i} className="py-3 px-4 my-2 rounded-xl bg-gradient-to-r from-[#00e5ff]/10 to-[#a855f7]/10 border border-[#a855f7]/30 text-center animate-fade-in shadow-lg">
+                         <p className="text-xs font-bold text-white tracking-wide">{ball.message}</p>
+                         <p className="text-[10px] font-mono text-[#94a3b8] mt-1">Score: {ball.score}/{ball.wickets}</p>
+                       </div>
+                     );
+                  }
+
                   const style = ballStyle({ ...ball, totalRuns: ball.runs, isWicket: ball.isWicket, extraType: ball.extraType }, true, false);
+                  const isMajor = ball.outcome === "4" || ball.outcome === "6" || ball.outcome === "W";
+                  
                   return (
                     <div key={i}
-                      className={`flex items-start gap-2.5 py-2 px-3 rounded-xl animate-fade-in ${ball.isOverride ? "border border-dashed border-[#a855f7]/40 bg-[#a855f7]/05" : "glass-light"}`}>
+                      className={`flex items-start gap-3 py-2.5 px-3 rounded-xl animate-fade-in transition-all ${ball.isOverride ? "border border-dashed border-[#a855f7]/40 bg-[#a855f7]/05" : isMajor ? "glass border border-white/20 shadow-lg scale-[1.02]" : "glass-light"}`}>
                       {/* Ball indicator */}
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 mt-0.5"
-                        style={{ background: style.bg, border: `1.5px solid ${style.border}`, color: style.text }}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5 ${isMajor ? 'ring-2 ring-offset-1 ring-offset-[#050a18]' : ''}`}
+                        style={{ background: style.bg, border: `1.5px solid ${style.border}`, color: style.text, ...(isMajor ? { ringColor: style.border } : {}) }}>
                         {ball.isWicket ? "W" : ball.extraType === "wide" ? "Wd" : ball.extraType === "nb" ? "NB" : String(ball.runs)}
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <span className="text-[9px] font-mono text-[#6b7280]">
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-[10px] font-mono text-[#6b7280]">
                             Over {ball.over}.{ball.ball}
-                            {ball.isOverride && <span className="text-[#a855f7] ml-1">• OVERRIDE</span>}
+                            {ball.isOverride && <span className="text-[#a855f7] ml-1 font-bold">• OVERRIDE</span>}
                           </span>
-                          <span className="text-[9px] font-mono text-white font-bold shrink-0">
+                          <span className="text-[10px] font-mono text-white font-bold shrink-0">
                             {ball.score}/{ball.wickets}
                           </span>
                         </div>
-                        <p className="text-xs text-[#c4cad6] leading-relaxed">{ball.commentary}</p>
+                        <p className={`text-sm leading-relaxed ${isMajor ? 'text-white font-semibold' : 'text-[#c4cad6]'}`}>{ball.commentary}</p>
                       </div>
                     </div>
                   );
                 })}
-                <div ref={bottomRef} />
               </div>
-
-              {/* Live scoreboard */}
-              {simBalls.length > 0 && (() => {
-                const last = simBalls[simBalls.length - 1];
-                const overs = Math.floor(last.legalBalls / 6) + "." + (last.legalBalls % 6);
-                const rr = last.legalBalls > 0 ? ((last.score / last.legalBalls) * 6).toFixed(2) : "0.00";
-                const rrr = target && last.legalBalls < 120
-                  ? (((target - last.score) / Math.max(1, 120 - last.legalBalls)) * 6).toFixed(2)
-                  : null;
-                return (
-                  <div className="mt-3 pt-3 border-t border-white/[0.06] grid grid-cols-3 gap-2">
-                    <div className="text-center">
-                      <p className="text-[8px] font-mono text-[#6b7280] uppercase">CRR</p>
-                      <p className="text-white text-sm font-black">{rr}</p>
-                    </div>
-                    {rrr && (
-                      <div className="text-center">
-                        <p className="text-[8px] font-mono text-[#6b7280] uppercase">RRR</p>
-                        <p className={`text-sm font-black ${parseFloat(rrr) > 10 ? "text-[#ff3b5c]" : parseFloat(rrr) > 8 ? "text-[#ffd700]" : "text-[#00ff88]"}`}>{rrr}</p>
-                      </div>
-                    )}
-                    <div className="text-center">
-                      <p className="text-[8px] font-mono text-[#6b7280] uppercase">Overs</p>
-                      <p className="text-white text-sm font-black">{overs}</p>
-                    </div>
-                  </div>
-                );
-              })()}
             </div>
           )}
 

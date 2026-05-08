@@ -133,7 +133,8 @@ def get_match_state(df_clean, match_id, innings, over, ball_no):
         "bowler": target_row['bowler'], "current_score": int(score_before),
         "current_wickets": int(wickets_before), "legal_balls_bowled": int(legal_balls_bowled),
         "balls_remaining": int(balls_remaining), "target": int(target) if target else None,
-        "runs_required": int(runs_required) if runs_required else None
+        "runs_required": int(runs_required) if runs_required else None,
+        "over": over, "ball_no": ball_no
     }
 
 def generate_remaining_batting_lineup(raw_df, match_df, initial_state):
@@ -716,6 +717,14 @@ class BallProbabilityEngine:
             blended[self.outcome_keys.index('6')] *= 0.85
             blended[self.outcome_keys.index('W')] *= 1.05
 
+        # Strict tailender / pure-bowler batting penalty
+        total_career_balls = sum([self.batting_profiles.get(striker, {}).get(p, {}).get('_balls_recorded', 0) for p in ['powerplay', 'middle', 'death']])
+        if total_career_balls < 150:
+            blended[self.outcome_keys.index('4')] *= 0.25
+            blended[self.outcome_keys.index('6')] *= 0.15
+            blended[self.outcome_keys.index('0')] *= 1.40
+            blended[self.outcome_keys.index('W')] *= 1.60
+
         # High-wicket collapse penalty
         wickets = self.current_wickets
         if match_state:
@@ -836,8 +845,11 @@ class SingleMatchSimulator:
                 'target': state.get('target')
             }
 
+            current_striker = state['striker']
+            current_bowler = state['current_bowler']
+
             outcome = self.engine.simulate_delivery(
-                striker=state['striker'], bowler=state['current_bowler'],
+                striker=current_striker, bowler=current_bowler,
                 phase=state['phase'], aggression_factor=aggression,
                 venue=venue, form_mults=form_mults,
                 match_state=match_state, impact_score=impact_score,
@@ -887,10 +899,41 @@ class SingleMatchSimulator:
                 match_log.append({
                     "score": state['score'], "wickets": state['wickets'],
                     "outcome": outcome, "aggression": round(aggression, 2),
-                    "confidence": round(striker_confidence, 2)
+                    "confidence": round(striker_confidence, 2),
+                    "striker": current_striker, "bowler": current_bowler
                 })
 
         return state['score'], state['wickets'], match_log
+
+    def simulate_representative_trajectory(self, initial_state, batting_lineup=None, bowling_plan=None,
+                                           impact_score=0.0, temperature=0.7, num_sims=30):
+        results = []
+        chase_target = initial_state.get('target')
+        win_count = 0
+        
+        for _ in range(num_sims):
+            score, wickets, match_log = self.simulate_detailed(
+                initial_state, batting_lineup, bowling_plan,
+                impact_score=impact_score, temperature=temperature
+            )
+            results.append({'score': score, 'wickets': wickets, 'log': match_log})
+            if chase_target and score >= chase_target:
+                win_count += 1
+                
+        win_prob = (win_count / num_sims) * 100 if chase_target else None
+            
+        scores = [r['score'] for r in results]
+        median_score = np.median(scores)
+        
+        best_diff = float('inf')
+        best_result = results[0]
+        for r in results:
+            diff = abs(r['score'] - median_score)
+            if diff < best_diff:
+                best_diff = diff
+                best_result = r
+                
+        return best_result['score'], best_result['wickets'], best_result['log'], win_prob
 
     def simulate_most_probable(self, initial_state, batting_lineup=None, bowling_plan=None,
                                 impact_score=0.0):

@@ -89,6 +89,7 @@ class ModificationRequest(BaseModel):
     force_wicket: Optional[bool] = False
     new_striker: Optional[str] = None
     new_bowler: Optional[str] = None
+    outcome_override: Optional[str] = None
     temperature: Optional[float] = 0.7
 
 class PlayerPayload(BaseModel):
@@ -588,18 +589,61 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
         # 3. Build context for simulation
         lineup = generate_remaining_batting_lineup(raw_df, match_df, state)
         
-        # Build bowling plan
+        # Build bowling plan historically, preventing consecutive overs
         innings_df = df_clean[
             (df_clean['match_id'] == match_id) &
             (df_clean['innings'] == request.innings)
         ]
+        over_bowler_map = innings_df.sort_values('over').drop_duplicates('over').set_index('over')['bowler'].to_dict()
+        
+        current_over = state['legal_balls_bowled'] // 6
+        bowling_plan = []
+        last_b = state['current_bowler']
         all_bowlers = innings_df['bowler'].unique().tolist()
-        bowling_plan = [all_bowlers[i % max(1, len(all_bowlers))]
-                        for i in range(max(0, state['balls_remaining'] // 6))]
+        
+        for o in range(current_over + 1, 20):
+            b = over_bowler_map.get(o)
+            if not b or b == last_b:
+                avail = [x for x in all_bowlers if x != last_b]
+                b = avail[0] if avail else last_b
+            bowling_plan.append(b)
+            last_b = b
 
-        # 4. Simulate most probable trajectory
-        final_score, final_wickets, log = simulator.simulate_most_probable(
-            state, lineup, bowling_plan
+        # 4. Advance the state by the overridden ball itself before starting simulation
+        # This prevents the simulator from re-simulating the selected ball and misaligning strike rotation
+        if request.outcome_override:
+            outcome = request.outcome_override
+        else:
+            row = innings_df[(innings_df['over'] == request.over) & (innings_df['ball_no'] == request.ball_no)]
+            if not row.empty:
+                r = row.iloc[0]
+                if int(r['is_wicket']) == 1: outcome = "W"
+                elif r['extras_type'] == 'wides': outcome = "wide"
+                elif r['extras_type'] == 'noballs': outcome = "no_ball"
+                else: outcome = str(int(r['batsman_runs']))
+            else:
+                outcome = "0"
+                
+        is_legal, runs_this_ball = True, 0
+        if outcome in ['wide', 'no_ball']: is_legal = False; state['score'] += 1
+        elif outcome == 'W':
+            state['wickets'] += 1
+            if lineup: state['striker'] = lineup.pop(0)
+        else:
+            runs_this_ball = int(outcome)
+            state['score'] += runs_this_ball
+
+        if is_legal:
+            state['legal_balls_bowled'] += 1
+            state['balls_remaining'] -= 1
+            if runs_this_ball in [1, 3]: state['striker'], state['non_striker'] = state['non_striker'], state['striker']
+            if state['legal_balls_bowled'] % 6 == 0:
+                state['striker'], state['non_striker'] = state['non_striker'], state['striker']
+                if bowling_plan: state['current_bowler'] = bowling_plan.pop(0)
+
+        # 5. Simulate representative trajectory for the REST of the match
+        final_score, final_wickets, log, win_prob = simulator.simulate_representative_trajectory(
+            state, lineup, bowling_plan, num_sims=20
         )
 
         return {
@@ -609,7 +653,8 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
             "startBalls": state['legal_balls_bowled'],
             "finalScore": final_score,
             "finalWickets": final_wickets,
-            "ballLog": log
+            "ballLog": log,
+            "winProb": win_prob
         }
     except Exception as e:
         print(f"Simulation Error: {e}")
