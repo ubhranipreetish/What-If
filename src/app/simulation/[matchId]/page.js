@@ -113,7 +113,7 @@ export default function SimulationPage() {
   const [simRunning, setSimRunning] = useState(false);
   const [simScore, setSimScore] = useState(null);          // { runs, wickets, legalBalls }
   const [simResult, setSimResult] = useState(null);        // final result from backend
-  const [simSpeed, setSimSpeed] = useState(700);           // ms per ball
+  const [simSpeed, setSimSpeed] = useState(750); // 300=Fast, 750=Normal, 1500=Slow           // ms per ball
   const [winnerDeclared, setWinnerDeclared] = useState(null);
 
   const simIntervalRef = useRef(null);
@@ -181,23 +181,26 @@ export default function SimulationPage() {
         return;
       }
       if (st.wickets >= 10 || st.legalBalls >= 120) {
-        simRunningRef.current = false;
-        setSimRunning(false);
         if (st.target) {
+          simRunningRef.current = false;
+          setSimRunning(false);
           setWinnerDeclared({ team: st.bowlingTeam, type: "defend", score: st.score, wickets: st.wickets, target: st.target });
+          return;
+        } else if (simQueueRef.current.length === 0) {
+           simRunningRef.current = false;
+           setSimRunning(false);
+           return;
         }
-        return;
       }
 
-      let currentSpeed = simSpeedRef.current || 700;
+      let currentSpeed = simSpeedRef.current || 750;
       let delay = currentSpeed;
       
-      const outcome = String(next.outcome);
-      if (outcome === "4" || outcome === "6" || outcome === "W") {
-        delay += 1000;
+      if (next.inningsTransition) {
+        delay = 4000;
       }
 
-      if (!next.isOverride && next.legalBalls > 0 && next.legalBalls % 6 === 0 && simQueueRef.current.length > 0) {
+      if (!next.isOverride && !next.inningsTransition && next.legalBalls > 0 && next.legalBalls % 6 === 0 && simQueueRef.current.length > 0) {
         const nextBall = simQueueRef.current[0];
         if (nextBall) {
           delay += 1500;
@@ -217,7 +220,7 @@ export default function SimulationPage() {
       simIntervalRef.current = setTimeout(tick, delay);
     };
 
-    simIntervalRef.current = setTimeout(tick, simSpeedRef.current || 700);
+    simIntervalRef.current = setTimeout(tick, simSpeedRef.current || 800);
   }, []);
 
   const handleSimulate = useCallback(async () => {
@@ -256,11 +259,13 @@ export default function SimulationPage() {
       setSimMode(true);
 
       const inningsData = innings[String(inningsNum)];
-      const target = inningsNum === 2 ? (innings["1"]?.totalScore + 1 || null) : null;
+      let target = inningsNum === 2 ? (innings["1"]?.totalScore + 1 || null) : null;
 
       let score = data.startScore;
       let wickets = data.startWickets;
       let legalBalls = data.startBalls;
+      let currentBattingTeam = inningsData?.battingTeam || "";
+      let currentBowlingTeam = inningsData?.bowlingTeam || "";
 
       const isOvWide = outcomeOverride === "wide";
       const isOvNb = outcomeOverride === "nb";
@@ -281,8 +286,8 @@ export default function SimulationPage() {
         target,
         striker: newStriker || selectedBall.striker,
         bowler: newBowler || selectedBall.bowler,
-        battingTeam: inningsData?.battingTeam || "",
-        bowlingTeam: inningsData?.bowlingTeam || "",
+        battingTeam: currentBattingTeam,
+        bowlingTeam: currentBowlingTeam,
         commentary: outcomeOverride
           ? randomCommentary(outcomeOverride === "W" ? "W" : String(runsOverride ?? 0), newStriker || selectedBall.striker, newBowler || selectedBall.bowler)
           : selectedBall.commentary || "",
@@ -298,8 +303,29 @@ export default function SimulationPage() {
 
       // Build from backend ball log
       for (const entry of (data.ballLog || [])) {
+        if (entry.inningsTransition) {
+          queue.push({
+            isOverBreak: true,
+            inningsTransition: true,
+            message: entry.message,
+            score: entry.score,
+            wickets: entry.wickets
+          });
+          score = 0;
+          wickets = 0;
+          legalBalls = 0;
+          target = data.newTarget;
+          
+          const tempTeam = currentBattingTeam;
+          currentBattingTeam = currentBowlingTeam;
+          currentBowlingTeam = tempTeam;
+          continue;
+        }
+
         if (target && score >= target) break;
-        if (wickets >= 10 || legalBalls >= 120) break;
+        if (wickets >= 10 || legalBalls >= 120) {
+          if (!data.newTarget || target) break; 
+        }
 
         const outcome = entry.outcome;
         const isWicket = outcome === "W";
@@ -329,8 +355,8 @@ export default function SimulationPage() {
           target,
           striker: entry.striker || "The Batter",
           bowler: entry.bowler || "The Bowler",
-          battingTeam: inningsData?.battingTeam || "",
-          bowlingTeam: inningsData?.bowlingTeam || "",
+          battingTeam: currentBattingTeam,
+          bowlingTeam: currentBowlingTeam,
           commentary: entry.commentary || randomCommentary(outcome, entry.striker, entry.bowler),
           isSimulated: true,
           isOverride: false,
@@ -419,35 +445,63 @@ export default function SimulationPage() {
 
       {/* ── Header ────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#050a18]/90 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-          <a href="/" className="flex items-center gap-2 group shrink-0">
-            <span className="text-[#00e5ff] font-black text-lg tracking-tight group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] transition-all">
-              ◈ COUNTERPLAY
-            </span>
-          </a>
-
-          {/* Team vs Team pill */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <span className="px-2 sm:px-3 py-1 rounded-lg font-black text-xs sm:text-sm text-white truncate max-w-[80px] sm:max-w-none" style={{ background: team1Color + "33", border: `1px solid ${team1Color}55` }}>
-              {teamShort(team1Name)}
-            </span>
-            <span className="text-[#6b7280] text-xs font-black italic shrink-0">VS</span>
-            <span className="px-2 sm:px-3 py-1 rounded-lg font-black text-xs sm:text-sm text-white truncate max-w-[80px] sm:max-w-none" style={{ background: team2Color + "33", border: `1px solid ${team2Color}55` }}>
-              {teamShort(team2Name)}
-            </span>
-            {matchMeta?.venue && (
-              <span className="hidden md:block text-[10px] text-[#6b7280] font-mono truncate max-w-[180px]">• {matchMeta.venue}</span>
-            )}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-3 items-center">
+          
+          {/* Left: Back Button */}
+          <div className="flex justify-start">
+            <button onClick={() => router.push("/matches")}
+              className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest text-[#94a3b8] hover:text-white transition-colors group">
+              <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+              </span>
+              <span className="hidden sm:inline">BACK</span>
+            </button>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button onClick={() => router.push("/matches")}
-              className="text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#ff3b5c] transition-colors border border-[#6b7280]/20 hover:border-[#ff3b5c]/40 px-3 py-1.5 rounded-full">
-              [ESC] EXIT
-            </button>
+          {/* Center: Title & Match Details */}
+          <div className="flex flex-col items-center justify-center text-center">
+            <span className="text-[#00e5ff] font-black text-lg tracking-widest uppercase drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]">
+              COUNTERPLAY
+            </span>
+          </div>
+
+          {/* Right: Empty (for balance) */}
+          <div className="flex justify-end">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20 text-[9px] font-mono text-[#00ff88] tracking-widest uppercase shadow-[0_0_10px_rgba(0,255,136,0.1)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
+              <span className="hidden sm:inline">SYSTEM ONLINE</span>
+            </div>
           </div>
         </div>
       </header>
+
+      {/* ── Match Details Sub-Header ── */}
+      <div className="bg-[#050a18]/60 border-b border-white/[0.03] py-3 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-3 text-center sm:text-left">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team1Color, boxShadow: `0 0 8px ${team1Color}` }} />
+              <span className="text-white text-xs sm:text-sm font-black tracking-widest uppercase">{team1Name}</span>
+            </div>
+            <span className="text-[#6b7280] text-[10px] font-black italic">VS</span>
+            <div className="flex items-center gap-2">
+              <span className="text-white text-xs sm:text-sm font-black tracking-widest uppercase">{team2Name}</span>
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team2Color, boxShadow: `0 0 8px ${team2Color}` }} />
+            </div>
+          </div>
+          {matchMeta?.venue && (
+            <div className="flex items-center gap-1.5 text-[#6b7280] font-mono text-[10px] sm:text-xs uppercase tracking-widest">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              {matchMeta.venue}
+            </div>
+          )}
+        </div>
+      </div>
 
       {simMode ? (
         <LiveDashboard 
@@ -602,62 +656,28 @@ export default function SimulationPage() {
                     </div>
                   </div>
 
-                  {/* Players / Substitution */}
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="glass-light rounded-xl p-3">
-                      <p className="text-[9px] font-mono text-[#6b7280] uppercase tracking-wider mb-1">⚡ Striker</p>
-                      {rosters ? (
-                        <select 
-                          value={newStriker || selectedBall.striker}
-                          onChange={(e) => setNewStriker(e.target.value)}
-                          className="w-full bg-transparent text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
-                        >
-                          <option value={selectedBall.striker} className="bg-[#050a18]">{selectedBall.striker} (Original)</option>
-                          {(activeInnings === 1 ? rosters.team1.players : rosters.team2.players)
-                            .filter(p => p !== selectedBall.striker)
-                            .map(p => <option key={p} value={p} className="bg-[#050a18]">{p}</option>)
-                          }
-                        </select>
-                      ) : (
-                        <p className="text-white text-xs font-bold truncate">{selectedBall.striker || "—"}</p>
-                      )}
+                  {/* Event Commentary */}
+                  <div className="glass-light rounded-xl p-5 mb-6 border border-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[10px] font-mono text-[#00e5ff] uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] animate-pulse shadow-[0_0_8px_#00e5ff]"></span>
+                        Timeline Event
+                      </p>
+                      <p className="text-[#6b7280] font-mono text-[10px] bg-white/5 px-2 py-1 rounded">
+                        SCORE: {selectedBall.cumScore}/{selectedBall.cumWickets}
+                      </p>
                     </div>
-                    <div className="glass-light rounded-xl p-3">
-                      <p className="text-[9px] font-mono text-[#6b7280] uppercase tracking-wider mb-1">🎯 Bowler</p>
-                      {rosters ? (
-                        <select 
-                          value={newBowler || selectedBall.bowler}
-                          onChange={(e) => setNewBowler(e.target.value)}
-                          className="w-full bg-transparent text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
-                        >
-                          <option value={selectedBall.bowler} className="bg-[#050a18]">{selectedBall.bowler} (Original)</option>
-                          {(activeInnings === 1 ? rosters.team2.players : rosters.team1.players)
-                            .filter(p => p !== selectedBall.bowler)
-                            .map(p => <option key={p} value={p} className="bg-[#050a18]">{p}</option>)
-                          }
-                        </select>
-                      ) : (
-                        <p className="text-white text-xs font-bold truncate">{selectedBall.bowler || "—"}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actual outcome */}
-                  <div className="glass-light rounded-xl p-3 mb-4">
-                    <p className="text-[9px] font-mono text-[#6b7280] uppercase tracking-wider mb-1">What Actually Happened</p>
-                    <p className="text-white text-sm font-semibold">
+                    
+                    <p className="text-white text-[15px] font-medium leading-relaxed">
+                      <span className="font-bold text-[#a855f7]">{selectedBall.bowler}</span> to <span className="font-bold text-[#00ff88]">{selectedBall.striker}</span>,{" "}
                       {selectedBall.isWicket
-                        ? "🔴 WICKET"
+                        ? <span className="text-[#ff3b5c] font-black uppercase tracking-wider drop-shadow-md">Wicket!</span>
                         : selectedBall.extraType === "wide"
-                          ? "🟣 Wide (+1)"
+                          ? <span className="text-[#94a3b8] italic">Wide ball.</span>
                           : selectedBall.extraType === "nb"
-                            ? "🟣 No Ball (+1)"
-                            : `${selectedBall.totalRuns} run${selectedBall.totalRuns !== 1 ? "s" : ""}`
+                            ? <span className="text-[#94a3b8] italic">No ball.</span>
+                            : `${selectedBall.totalRuns} run${selectedBall.totalRuns !== 1 ? "s" : ""}.`
                       }
-                      {" "}
-                      <span className="text-[#94a3b8] font-normal text-xs">
-                        (Score: {selectedBall.cumScore}/{selectedBall.cumWickets})
-                      </span>
                     </p>
                   </div>
 
@@ -697,12 +717,12 @@ export default function SimulationPage() {
                   </div>
 
                   {/* Speed selector */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-[9px] font-mono text-[#6b7280] uppercase tracking-wider">Sim Speed</span>
-                    {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 800 }, { label: "Slow", ms: 1500 }].map(s => (
+                  <div className="flex items-center gap-2 mb-6">
+                    <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-widest mr-2">Sim Speed</span>
+                    {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
                       <button key={s.ms}
                         onClick={() => setSpeed(s.ms)}
-                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-mono transition-all ${simSpeed === s.ms ? "bg-[#00e5ff]/15 text-[#00e5ff] border border-[#00e5ff]/30" : "glass-light text-[#6b7280] border border-white/10 hover:text-white"}`}>
+                        className={`flex-1 py-2 rounded-lg text-[10px] font-mono transition-all uppercase font-bold tracking-wider ${simSpeed === s.ms ? "bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.4)] scale-105 z-10" : "bg-white/5 text-[#6b7280] border border-white/10 hover:border-white/30 hover:text-white"}`}>
                         {s.label}
                       </button>
                     ))}
@@ -772,7 +792,7 @@ export default function SimulationPage() {
               {/* Speed during sim */}
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-mono text-[#6b7280] uppercase">Speed</span>
-                {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 800 }, { label: "Slow", ms: 1500 }].map(s => (
+                {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
                   <button key={s.ms}
                     onClick={() => { setSpeed(s.ms); }}
                     className={`flex-1 py-1.5 rounded-lg text-[9px] font-mono transition-all ${simSpeed === s.ms ? "bg-[#a855f7]/15 text-[#a855f7] border border-[#a855f7]/30" : "glass-light text-[#6b7280] border border-white/10"}`}>

@@ -96,19 +96,24 @@ class PlayerPayload(BaseModel):
     id: str
     name: str
     role: str
-    style: str
-    avgSR: float
-    avg: float
+    style: Optional[str] = ""
+    avgSR: Optional[float] = 0.0
+    avg: Optional[float] = 0.0
     economy: Optional[float] = 0.0
     wicketsPerMatch: Optional[float] = 0.0
-    type: str # batter | bowler | allrounder
-    cost: int
+    type: str # batter | bowler | allrounder | wk
+    cost: Optional[int] = 0
+    imgColor: Optional[str] = "#FFFFFF"
 
-class ArenaRequest(BaseModel):
+class ArenaFullRequest(BaseModel):
     p1: str
     p2: str
     t1Roster: List[PlayerPayload]
     t2Roster: List[PlayerPayload]
+    t1BowlingOrder: List[PlayerPayload]
+    t2BowlingOrder: List[PlayerPayload]
+    tossWinner: int
+    tossDecision: str
 
 
 # ---------------------------------------------------------
@@ -183,69 +188,159 @@ def simulate_historical_modification(req: ModificationRequest):
 # [2] THE ARENA ROUTES
 # ---------------------------------------------------------
 
-@app.post("/api/simulate/arena")
-def simulate_gamified_arena(req: ArenaRequest):
-    """
-    Evaluates the 5v5 Arena draft using the custom logic derived in JS, 
-    but executed securely on backend. Highly extensible with Python Engine later.
-    """
-    # Converting the payload arrays back to dictionaries
-    team1 = [p.dict() for p in req.t1Roster]
-    team2 = [p.dict() for p in req.t2Roster]
-    
-    # We can either build a native Python 5-over simulator using BallProbabilityEngine
-    # or use the heuristic aggregate logic defined. We'll use the heuristic aggregate for now
-    # to emulate the fast execution JS prototype.
-
-    t1BatScore, t1BowlScore = 0, 0
-    t2BatScore, t2BowlScore = 0, 0
-
-    for p in team1:
-        if p['type'] in ['batter', 'allrounder']: t1BatScore += (p['avgSR'] * p['avg'])
-        if p['type'] in ['bowler', 'allrounder']: t1BowlScore += ((10 - p['economy']) * p['wicketsPerMatch'] * 100)
-    
-    for p in team2:
-        if p['type'] in ['batter', 'allrounder']: t2BatScore += (p['avgSR'] * p['avg'])
-        if p['type'] in ['bowler', 'allrounder']: t2BowlScore += ((10 - p['economy']) * p['wicketsPerMatch'] * 100)
-
-    # Base expectations
-    t1ExpectedRuns = 45 + round((t1BatScore - t2BowlScore) / 400)
-    t2ExpectedRuns = 45 + round((t2BatScore - t1BowlScore) / 400)
-
-    t1ExpectedRuns = max(20, min(85, t1ExpectedRuns))
-    t2ExpectedRuns = max(20, min(85, t2ExpectedRuns))
-
-    total = t1ExpectedRuns + t2ExpectedRuns
-    t2WinProb = round((t2ExpectedRuns / total) * 100)
-    t1WinProb = 100 - t2WinProb
-
-    winnerName = req.p1 if t1WinProb > t2WinProb else req.p2
-    winnerProb = max(t1WinProb, t2WinProb)
-
-    mvp = team1[0]
-    maxImpact = 0
-    winningPlayers = team1 if t1WinProb > t2WinProb else team2
-    
-    for p in winningPlayers:
-        impact = (10 - p['economy']) * p['cost'] if p['type'] == 'bowler' else p['avgSR']
-        if impact > maxImpact:
-            maxImpact = impact
-            mvp = p
-
-    reason = f"{mvp['name']}'s elite death-over economy neutralized the aggressive strike rate of the opposition." if mvp['type'] == 'bowler' else f"{mvp['name']}'s sheer power-hitting dismantled the opposition's bowling attack."
-
-    return {
-        "winnerName": winnerName,
-        "winnerProb": winnerProb,
-        "t1WinProb": t1WinProb,
-        "t2WinProb": t2WinProb,
-        "t1ExpectedRuns": f"{t1ExpectedRuns}/2",
-        "t2ExpectedRuns": f"{t2ExpectedRuns}/2",
-        "mvp": mvp['name'],
-        "keyMatchup": {
-            "reason": reason
+@app.post("/api/simulate/arena/full")
+def simulate_arena_full(req: ArenaFullRequest):
+    if simulator is None:
+        raise HTTPException(status_code=503, detail="Simulator Engine Offline")
+        
+    try:
+        t1_bat = [p.name for p in req.t1Roster]
+        t2_bat = [p.name for p in req.t2Roster]
+        t1_bowl = [p.name for p in req.t1BowlingOrder] * 4  # Expand to cover 20 overs
+        t2_bowl = [p.name for p in req.t2BowlingOrder] * 4
+        
+        # Determine who bats first
+        t1_bats_first = (req.tossWinner == 1 and req.tossDecision == 'bat') or (req.tossWinner == 2 and req.tossDecision == 'bowl')
+        
+        bat1 = t1_bat if t1_bats_first else t2_bat
+        bowl1 = t2_bowl if t1_bats_first else t1_bowl
+        
+        bat2 = t2_bat if t1_bats_first else t1_bat
+        bowl2 = t1_bowl if t1_bats_first else t2_bowl
+        
+        batting_first_name = req.p1 if t1_bats_first else req.p2
+        batting_second_name = req.p2 if t1_bats_first else req.p1
+        
+        import random
+        seed = random.randint(1, 999999)
+        
+        # ── Innings 1 ──
+        state_1 = {
+            "score": 0, "wickets": 0, "balls_remaining": 120, "legal_balls_bowled": 0,
+            "striker": bat1[0], "non_striker": bat1[1], "current_bowler": bowl1[0],
+            "phase": "powerplay", "is_free_hit": False,
+            "battingTeam": batting_first_name, "bowlingTeam": batting_second_name
         }
-    }
+        
+        lineup_1 = bat1[2:]
+        bowling_plan_1 = bowl1[1:]
+        
+        final_score_1, final_wickets_1, raw_log_1, _ = simulator.simulate_representative_trajectory(
+            state_1, lineup_1, bowling_plan_1, num_sims=50, seed=seed
+        )
+        
+        # ── Enrich ball log with fields LiveDashboard expects ──
+        def enrich_log(raw_log, start_balls=0):
+            enriched = []
+            legal_count = start_balls
+            for ball in raw_log:
+                if ball.get('inningsTransition'):
+                    enriched.append(ball)
+                    continue
+                    
+                outcome = ball.get('outcome', '0')
+                is_wicket = outcome == 'W'
+                is_wide = outcome == 'wide'
+                is_nb = outcome == 'no_ball'
+                extra_type = 'wide' if is_wide else ('nb' if is_nb else None)
+                is_legal = not is_wide and not is_nb
+                
+                runs = 0
+                if not is_wicket and not is_wide and not is_nb:
+                    runs = int(outcome)
+                total_runs = 1 if (is_wide or is_nb) else runs
+                
+                if is_legal:
+                    legal_count += 1
+                
+                enriched.append({
+                    "score": ball['score'],
+                    "wickets": ball['wickets'],
+                    "outcome": str(outcome),
+                    "striker": ball.get('striker', ''),
+                    "bowler": ball.get('bowler', ''),
+                    "isWicket": is_wicket,
+                    "extraType": extra_type,
+                    "runs": runs,
+                    "totalRuns": total_runs,
+                    "legalBalls": legal_count,
+                    "aggression": ball.get('aggression', 1.0),
+                    "confidence": ball.get('confidence', 1.0),
+                })
+            return enriched
+        
+        log_1 = enrich_log(raw_log_1, 0)
+        
+        # Target
+        target = final_score_1 + 1
+        
+        # Transition marker
+        log_1.append({
+            "inningsTransition": True,
+            "target": target,
+            "battingTeam": batting_second_name,
+            "bowlingTeam": batting_first_name,
+            "innings1Score": f"{final_score_1}/{final_wickets_1}"
+        })
+        
+        # ── Innings 2 ──
+        state_2 = {
+            "score": 0, "wickets": 0, "balls_remaining": 120, "legal_balls_bowled": 0,
+            "striker": bat2[0], "non_striker": bat2[1], "current_bowler": bowl2[0],
+            "phase": "powerplay", "is_free_hit": False, "target": target,
+            "battingTeam": batting_second_name, "bowlingTeam": batting_first_name
+        }
+        
+        lineup_2 = bat2[2:]
+        bowling_plan_2 = bowl2[1:]
+        
+        final_score_2, final_wickets_2, raw_log_2, win_prob = simulator.simulate_representative_trajectory(
+            state_2, lineup_2, bowling_plan_2, num_sims=50, seed=seed+1
+        )
+        
+        log_2 = enrich_log(raw_log_2, 0)
+        full_log = log_1 + log_2
+        
+        # ── Determine winner ──
+        chased = final_score_2 >= target
+        if chased:
+            winner_name = batting_second_name
+            winner_type = "chase"
+        else:
+            winner_name = batting_first_name
+            winner_type = "defend"
+        
+        return {
+            "success": True,
+            # simResult-compatible fields
+            "startScore": 0,
+            "startWickets": 0,
+            "startBalls": 0,
+            "startStriker": bat1[0],
+            "startNonStriker": bat1[1],
+            "startBowler": bowl1[0],
+            "initialBatters": {},
+            "initialBowlers": {},
+            "newTarget": target,
+            # Arena-specific
+            "targetScore": target,
+            "innings1Score": final_score_1,
+            "innings1Wickets": final_wickets_1,
+            "finalScore": final_score_2,
+            "finalWickets": final_wickets_2,
+            "ballLog": full_log,
+            "winProb": win_prob,
+            "winnerName": winner_name,
+            "winnerType": winner_type,
+            "battingFirst": batting_first_name,
+            "battingSecond": batting_second_name,
+        }
+        
+    except Exception as e:
+        print(f"Arena Simulation Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ---------------------------------------------------------
 # [3] METADATA ROUTES (DYNAMIC UI)
@@ -613,6 +708,7 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
         # This prevents the simulator from re-simulating the selected ball and misaligning strike rotation
         if request.outcome_override:
             outcome = request.outcome_override
+            if outcome == 'nb': outcome = 'no_ball'
         else:
             row = innings_df[(innings_df['over'] == request.over) & (innings_df['ball_no'] == request.ball_no)]
             if not row.empty:
@@ -651,6 +747,57 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
             state, lineup, bowling_plan, num_sims=100, seed=scenario_seed
         )
 
+        new_target = None
+        if request.innings == 1:
+            target_2 = final_score + 1
+            new_target = target_2
+            try:
+                state_2 = get_match_state(df_clean, match_id, 2, 0, 1)
+                state_2['score'] = state_2.pop('current_score')
+                state_2['wickets'] = state_2.pop('current_wickets')
+                state_2['current_bowler'] = state_2['bowler']
+                state_2['target'] = target_2
+                state_2['runs_required'] = target_2
+
+                lineup_2 = generate_remaining_batting_lineup(raw_df, match_df, state_2)
+
+                innings_df_2 = df_clean[(df_clean['match_id'] == match_id) & (df_clean['innings'] == 2)]
+                if not innings_df_2.empty:
+                    over_bowler_map_2 = innings_df_2.sort_values('over').drop_duplicates('over').set_index('over')['bowler'].to_dict()
+                    bowling_plan_2 = []
+                    last_b_2 = state_2['current_bowler']
+                    all_bowlers_2 = innings_df_2['bowler'].unique().tolist()
+                    for o in range(0, 20):
+                        b = over_bowler_map_2.get(o)
+                        if not b or b == last_b_2:
+                            avail = [x for x in all_bowlers_2 if x != last_b_2]
+                            b = avail[0] if avail else last_b_2
+                        bowling_plan_2.append(b)
+                        last_b_2 = b
+
+                    # Insert transition message into log
+                    log.append({
+                        "isOverBreak": True,
+                        "message": f"End of 1st Innings! Target set to {target_2}. Next bowler: {state_2['current_bowler']}",
+                        "score": final_score,
+                        "wickets": final_wickets,
+                        "inningsTransition": True
+                    })
+
+                    seed_str_2 = f"{match_id}_2_0_1_auto_{final_score}"
+                    scenario_seed_2 = zlib.adler32(seed_str_2.encode('utf-8'))
+
+                    final_score_2, final_wickets_2, log_2, win_prob_2 = simulator.simulate_representative_trajectory(
+                        state_2, lineup_2, bowling_plan_2, num_sims=100, seed=scenario_seed_2
+                    )
+
+                    log.extend(log_2)
+                    final_score = final_score_2
+                    final_wickets = final_wickets_2
+                    win_prob = win_prob_2
+            except Exception as e2:
+                print(f"Could not automatically simulate 2nd innings: {e2}")
+
         return {
             "success": True,
             "startScore": state['score'],
@@ -664,7 +811,8 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
             "finalScore": final_score,
             "finalWickets": final_wickets,
             "ballLog": log,
-            "winProb": win_prob
+            "winProb": win_prob,
+            "newTarget": new_target
         }
     except Exception as e:
         print(f"Simulation Error: {e}")

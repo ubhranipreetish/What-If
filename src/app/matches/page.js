@@ -1,19 +1,18 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import GlowButton from "@/components/GlowButton";
 
 export default function MatchHub() {
     const router = useRouter();
 
     const [selectedYear, setSelectedYear] = useState(null);
-    const [selectedTeam, setSelectedTeam] = useState(null);  // full team object {short, name, color}
-    const [selectedOpponent, setSelectedOpponent] = useState(null); // full team object
+    const [selectedTeam, setSelectedTeam] = useState(null);  
+    const [selectedOpponent, setSelectedOpponent] = useState(null); 
 
     // Dynamic State
     const [years, setYears] = useState([]);
     const [availableTeams, setAvailableTeams] = useState([]);
-    const [allMatches, setAllMatches] = useState([]);     // raw matches from backend
+    const [allMatches, setAllMatches] = useState([]);     
     const [filteredMatches, setFilteredMatches] = useState([]);
     const [loading, setLoading] = useState({ years: true, teams: false, matches: false });
 
@@ -75,7 +74,7 @@ export default function MatchHub() {
         fetchTeams();
     }, [selectedYear]);
 
-    // 3️⃣ Fetch ALL Matches when Team is Selected (store raw, filter client-side for opponent)
+    // 3️⃣ Fetch ALL Matches when Team is Selected 
     useEffect(() => {
         if (!selectedYear || !selectedTeam) {
             setAllMatches([]);
@@ -88,7 +87,6 @@ export default function MatchHub() {
             try {
                 const res = await fetch(`http://localhost:8000/api/metadata/matches?year=${selectedYear}&team=${encodeURIComponent(selectedTeam.name)}`);
                 const data = await res.json();
-                // Map to card format
                 const formatted = data.matches.map(m => {
                     const oppName = m.title.replace("vs ", "");
                     return {
@@ -123,7 +121,6 @@ export default function MatchHub() {
         }
     }, [selectedOpponent, allMatches]);
 
-    // Unique opponents from loaded matches
     const availableOpponents = [...new Map(allMatches.map(m => [m.team2.name, m.team2])).values()];
 
     const handleReset = () => {
@@ -133,86 +130,109 @@ export default function MatchHub() {
     };
 
     return (
-        <div className="min-h-screen grid-bg">
-            <header className="border-b border-[rgba(255,255,255,0.06)] bg-[#050a18]/80 backdrop-blur-md sticky top-0 z-50">
-                <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <a href="/" className="flex items-center gap-3 group">
-                        <span className="text-[#00e5ff] font-black text-xl tracking-tight leading-none group-hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] transition-all">
-                            ◈ COUNTERPLAY
+        <div className="min-h-screen bg-[#02050c] font-sans text-[#e2e8f0]">
+            
+            {/* Top Navigation */}
+            <header className="border-b border-white/5 bg-[#050a18]/90 backdrop-blur-md sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                    <a href="/" className="flex items-center gap-4 group">
+                        <div className="w-8 h-8 rounded bg-[#00e5ff]/10 border border-[#00e5ff]/30 flex items-center justify-center group-hover:bg-[#00e5ff]/20 transition-colors">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M19 12H5M12 19l-7-7 7-7"/>
+                            </svg>
+                        </div>
+                        <span className="text-white font-black text-xl tracking-widest uppercase opacity-80 group-hover:opacity-100 group-hover:text-[#00e5ff] transition-all">
+                            Home
                         </span>
                     </a>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-light border border-[#00ff88]/20 text-xs font-mono text-[#00ff88] shadow-[0_0_10px_rgba(0,255,136,0.1)]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
-                        SYS.ONLINE
+                    <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20 text-[10px] font-mono text-[#00ff88] tracking-widest uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse shadow-[0_0_8px_#00ff88]" />
+                        Connected
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-5xl mx-auto px-6 py-12">
-                <div className="text-center mb-12">
-                    <p className="text-[#00e5ff] text-xs font-mono font-bold tracking-[0.2em] mb-3">STEP 01</p>
-                    <h1 className="text-4xl sm:text-5xl font-black text-white mb-4 tracking-tight drop-shadow-md">
-                        Define the Era
+            <main className="max-w-6xl mx-auto px-6 py-16">
+                
+                {/* Header Section */}
+                <div className="text-center mb-16 relative">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[radial-gradient(ellipse,rgba(0,229,255,0.05)_0%,transparent_70%)] pointer-events-none" />
+                    
+                    <p className="text-[#00e5ff] text-[10px] font-mono font-bold tracking-[0.3em] uppercase mb-4 opacity-80">
+                        Step 01
+                    </p>
+                    <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter drop-shadow-2xl">
+                        Select a Match
                     </h1>
-                    <p className="text-[#94a3b8] max-w-lg mx-auto text-lg font-light leading-relaxed">
-                        Filter the historical archives by IPL season and franchise. Then select the exact match timeline to intercept.
+                    <p className="text-[#94a3b8] max-w-2xl mx-auto text-lg font-light leading-relaxed">
+                        Filter matches by IPL season and team to select the exact match you want to simulate.
                     </p>
                 </div>
 
-                {/* Interactive Cascading Filters */}
-                <div className="glass rounded-3xl p-8 mb-12 border border-white/10 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(0,229,255,0.03)_0%,transparent_70%)] pointer-events-none" />
-
-                    <div className="flex flex-col md:flex-row gap-8 relative z-10">
-                        {/* Column 1: Year */}
-                        <div className="flex-1">
-                            <label className="block text-xs font-mono text-[#6b7280] uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
-                                [A] Target Season
-                            </label>
-                            <div className="flex flex-wrap gap-3">
-                                {years.map(year => (
-                                    <button
-                                        key={year}
-                                        onClick={() => { setSelectedYear(year); setSelectedTeam(null); }}
-                                        className={`px-5 py-2.5 rounded-xl font-mono text-sm transition-all duration-300 ${selectedYear === year
-                                            ? "bg-[#00e5ff] text-[#050a18] font-bold shadow-[0_0_15px_rgba(0,229,255,0.3)] scale-105"
-                                            : "glass-light text-[#c4cad6] hover:border-[#00e5ff]/30 hover:text-white"
-                                            }`}
-                                    >
-                                        {year}
-                                    </button>
-                                ))}
+                {/* Filters Section */}
+                <div className="bg-[#050a18] rounded-3xl p-8 mb-16 border border-white/5 shadow-2xl relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#00e5ff]/[0.02] to-transparent pointer-events-none rounded-3xl" />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
+                        
+                        {/* Column 1: Year Filter */}
+                        <div>
+                            <div className="flex items-center gap-3 mb-6 border-b border-white/5 pb-3">
+                                <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-xs">A</div>
+                                <h3 className="text-sm font-mono text-white tracking-widest uppercase">Select Season</h3>
                             </div>
+                            
+                            {loading.years ? (
+                                <div className="flex gap-2 animate-pulse">
+                                    <div className="h-10 w-20 bg-white/5 rounded-lg"></div>
+                                    <div className="h-10 w-20 bg-white/5 rounded-lg"></div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap gap-2">
+                                    {years.map(year => (
+                                        <button
+                                            key={year}
+                                            onClick={() => { setSelectedYear(year); setSelectedTeam(null); }}
+                                            className={`px-4 py-2 rounded-lg font-mono text-sm transition-all duration-300 ${selectedYear === year
+                                                ? "bg-[#00e5ff] text-[#050a18] font-bold shadow-[0_0_15px_rgba(0,229,255,0.4)]"
+                                                : "bg-white/5 text-[#94a3b8] hover:bg-white/10 hover:text-white border border-transparent hover:border-white/10"
+                                                }`}
+                                        >
+                                            {year}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
-                        {/* Column 2: Team (Only shows if year is selected or always available) */}
-                        <div className={`flex-1 transition-all duration-500 ${selectedYear ? "opacity-100 translate-y-0" : "opacity-30 pointer-events-none translate-y-4"}`}>
-                            <label className="block text-xs font-mono text-[#6b7280] uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
-                                [B] Franchise Filter
-                            </label>
-                            <div className="flex flex-wrap gap-2">
+                        {/* Column 2: Franchise Filter */}
+                        <div className={`transition-all duration-500 ${selectedYear ? "opacity-100" : "opacity-40 grayscale pointer-events-none"}`}>
+                            <div className="flex items-center gap-3 mb-6 border-b border-white/5 pb-3">
+                                <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-xs">B</div>
+                                <h3 className="text-sm font-mono text-white tracking-widest uppercase">Select Team</h3>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-3">
                                 {availableTeams.length > 0 ? (
                                     availableTeams.map(team => (
                                         <button
                                             key={team.short}
                                             onClick={() => setSelectedTeam(team)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${selectedTeam?.short === team.short
-                                                ? "border-2 scale-105 text-white shadow-lg"
-                                                : "border border-white/10 text-[#c4cad6] glass-light hover:bg-white/5"
+                                            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-3 ${selectedTeam?.short === team.short
+                                                ? "bg-white/10 text-white border-transparent shadow-lg transform scale-105"
+                                                : "bg-transparent border border-white/10 text-[#94a3b8] hover:bg-white/5 hover:text-white"
                                                 }`}
                                             style={{
                                                 borderColor: selectedTeam?.short === team.short ? team.color : "",
-                                                backgroundColor: selectedTeam?.short === team.short ? `${team.color}33` : "",
+                                                backgroundColor: selectedTeam?.short === team.short ? `${team.color}20` : "",
                                             }}
                                         >
-                                            <span className="flex items-center gap-2">
-                                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team.color }} />
-                                                {team.name}
-                                            </span>
+                                            <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: team.color }} />
+                                            {team.name}
                                         </button>
                                     ))
                                 ) : (
-                                    <p className="text-sm font-mono text-[#6b7280] italic py-2">Select a season first...</p>
+                                    <p className="text-xs font-mono text-[#6b7280] tracking-wider py-2">Awaiting Season Selection...</p>
                                 )}
                             </div>
                         </div>
@@ -220,109 +240,145 @@ export default function MatchHub() {
 
                     {/* Column 3: Opponent Filter */}
                     {allMatches.length > 0 && (
-                        <div className={`border-t border-white/10 pt-6 mt-6 transition-all duration-500`}>
-                            <label className="block text-xs font-mono text-[#6b7280] uppercase tracking-wider mb-4">
-                                [C] Opposition Filter <span className="text-[#00e5ff]/50 ml-2">({availableOpponents.length} opponents)</span>
-                            </label>
-                            <div className="flex flex-wrap gap-2">
+                        <div className="mt-12 pt-8 border-t border-white/5 animate-in slide-in-from-bottom-4 fade-in duration-500 relative z-10">
+                            <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-xs">C</div>
+                                    <h3 className="text-sm font-mono text-white tracking-widest uppercase">Select Opponent</h3>
+                                </div>
+                                <span className="text-[10px] font-mono text-[#00e5ff]/50 px-2 py-1 bg-[#00e5ff]/10 rounded uppercase tracking-widest">
+                                    {availableOpponents.length} Opponents
+                                </span>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-3">
                                 {availableOpponents.map(opp => (
                                     <button
                                         key={opp.name}
                                         onClick={() => setSelectedOpponent(selectedOpponent?.name === opp.name ? null : opp)}
-                                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${selectedOpponent?.name === opp.name
-                                            ? "border-2 scale-105 text-white shadow-lg"
-                                            : "border border-white/10 text-[#c4cad6] glass-light hover:bg-white/5"
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-3 ${selectedOpponent?.name === opp.name
+                                            ? "bg-white/10 text-white border-transparent shadow-lg transform scale-105"
+                                            : "bg-transparent border border-white/10 text-[#94a3b8] hover:bg-white/5 hover:text-white"
                                             }`}
                                         style={{
                                             borderColor: selectedOpponent?.name === opp.name ? opp.color : "",
-                                            backgroundColor: selectedOpponent?.name === opp.name ? `${opp.color}33` : "",
+                                            backgroundColor: selectedOpponent?.name === opp.name ? `${opp.color}20` : "",
                                         }}
                                     >
-                                        <span className="flex items-center gap-2">
-                                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: opp.color }} />
-                                            {opp.name}
-                                        </span>
+                                        <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: opp.color }} />
+                                        {opp.name}
                                     </button>
                                 ))}
                             </div>
                         </div>
                     )}
 
+                    {/* Clear Filters */}
                     {(selectedYear !== null || selectedTeam !== null) && (
-                        <div className="mt-8 pt-6 border-t border-white/10 flex justify-end">
+                        <div className="absolute top-8 right-8 z-20">
                             <button
                                 onClick={handleReset}
-                                className="text-xs font-mono text-[#ff3b5c] hover:text-[#ff6b35] transition-colors flex items-center gap-1"
+                                className="w-8 h-8 rounded-full bg-white/5 hover:bg-[#ff3b5c]/20 hover:text-[#ff3b5c] text-[#94a3b8] flex items-center justify-center transition-all border border-transparent hover:border-[#ff3b5c]/30"
+                                title="Clear All Filters"
                             >
-                                ✕ CLEAR FILTERS
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
                             </button>
                         </div>
                     )}
                 </div>
 
-                {/* Match Results */}
-                <div className="space-y-6">
-                    <label className="flex items-center gap-3 text-sm font-mono text-white tracking-widest pl-2">
-                        <span className="w-8 h-[1px] bg-gradient-to-r from-[#00e5ff] to-transparent"></span>
-                        {filteredMatches.length} TIMELINE{filteredMatches.length !== 1 ? "S" : ""} FOUND
-                    </label>
+                {/* Match Results Grid */}
+                <div className="space-y-8">
+                    <div className="flex items-center gap-4 text-[11px] font-mono text-white tracking-[0.2em] uppercase">
+                        <span className="w-12 h-[1px] bg-gradient-to-r from-[#00e5ff] to-transparent"></span>
+                        {filteredMatches.length} {filteredMatches.length === 1 ? 'Match' : 'Matches'} Found
+                        <span className="w-12 h-[1px] bg-gradient-to-l from-[#00e5ff] to-transparent"></span>
+                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {filteredMatches.map((match, i) => (
                             <button
                                 key={match.id}
                                 onClick={() => router.push(`/simulation/${match.id}`)}
-                                className="group relative w-full text-left rounded-2xl overflow-hidden glass transition-all duration-500 ease-out cursor-pointer hover:scale-[1.02] hover:border-[rgba(0,229,255,0.4)] hover:shadow-[0_0_30px_rgba(0,229,255,0.2)] animate-slide-up"
-                                style={{ animationDelay: `${i * 100}ms`, opacity: 0, animationFillMode: "forwards" }}
+                                className="group block w-full text-left bg-[#050a18] rounded-3xl border border-white/5 hover:border-[#00e5ff]/40 overflow-hidden transition-all duration-500 hover:shadow-[0_10px_40px_rgba(0,229,255,0.1)] hover:-translate-y-1 animate-in slide-in-from-bottom-8 fade-in"
+                                style={{ animationDelay: `${i * 50}ms`, animationFillMode: "both" }}
                             >
-                                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
-
-                                <div className="h-1.5 w-full flex opacity-80 group-hover:opacity-100 transition-opacity">
+                                {/* Top Color Bar */}
+                                <div className="h-2 w-full flex opacity-60 group-hover:opacity-100 transition-opacity duration-500">
                                     <div className="flex-1" style={{ backgroundColor: match.team1.color }} />
                                     <div className="flex-1" style={{ backgroundColor: match.team2.color }} />
                                 </div>
 
-                                <div className="p-6">
-                                    <div className="flex items-center justify-between mb-5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm text-white shadow-inner" style={{ background: match.team1.color }}>
+                                <div className="p-8">
+                                    {/* Team Header */}
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl text-white shadow-lg transform group-hover:scale-105 transition-transform duration-500" style={{ background: `linear-gradient(135deg, ${match.team1.color}, ${match.team1.color}dd)` }}>
                                                 {match.team1.short}
                                             </div>
-                                            <span className="text-[#6b7280] text-sm font-black italic">VS</span>
-                                            <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm text-white shadow-inner" style={{ background: match.team2.color }}>
+                                            
+                                            <div className="text-xs font-mono font-bold text-[#6b7280] px-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                VS
+                                            </div>
+                                            
+                                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl text-white shadow-lg transform group-hover:scale-105 transition-transform duration-500" style={{ background: `linear-gradient(135deg, ${match.team2.color}, ${match.team2.color}dd)` }}>
                                                 {match.team2.short}
                                             </div>
                                         </div>
-                                        <div className="w-10 h-10 rounded-full glass-light flex items-center justify-center text-[#94a3b8] group-hover:text-[#00e5ff] group-hover:bg-[#00e5ff]/10 transition-all">
-                                            →
+
+                                        {/* Action Icon */}
+                                        <div className="w-12 h-12 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center text-[#94a3b8] group-hover:text-[#00e5ff] group-hover:bg-[#00e5ff]/10 group-hover:border-[#00e5ff]/30 transition-all duration-500">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transform group-hover:translate-x-1 transition-transform">
+                                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                                            </svg>
                                         </div>
                                     </div>
 
-                                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#00e5ff] transition-colors leading-tight">
-                                        {match.title}
-                                    </h3>
+                                    {/* Match Details */}
+                                    <div className="mb-8">
+                                        <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-[#00e5ff] transition-colors leading-tight">
+                                            {match.title}
+                                        </h3>
+                                        <p className="text-[#6b7280] font-mono text-xs uppercase tracking-wider flex items-center gap-2">
+                                            <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                                            </svg>
+                                            {match.date}
+                                        </p>
+                                    </div>
 
-                                    <p className="text-xs text-[#6b7280] font-mono mb-4 flex items-center gap-2">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                        {match.date}
-                                    </p>
-
-                                    <div className="glass-light rounded-xl p-4 border border-[rgba(255,255,255,0.03)] group-hover:border-[rgba(0,229,255,0.2)] transition-colors">
+                                    {/* Original Outcome Ribbon */}
+                                    <div className="bg-white/[0.02] rounded-2xl p-5 border border-white/5 group-hover:bg-[#00e5ff]/[0.02] group-hover:border-[#00e5ff]/20 transition-colors">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <span className="w-1 h-1 rounded-full bg-[#00ff88]"></span>
-                                            <span className="text-[10px] text-[#8b949e] font-mono uppercase tracking-wider">Original Winner</span>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88]"></span>
+                                            <span className="text-[9px] text-[#94a3b8] font-mono uppercase tracking-[0.2em]">Original Outcome</span>
                                         </div>
-                                        <p className="text-sm font-bold text-white">
-                                            {match.winner} <span className="text-xs text-[#6b7280] font-normal ml-1">({match.margin})</span>
+                                        <p className="text-base font-bold text-white">
+                                            {match.winner} <span className="text-sm font-normal text-[#6b7280] ml-1">({match.margin})</span>
                                         </p>
                                     </div>
                                 </div>
                             </button>
                         ))}
 
+                        {/* Empty State */}
                         {filteredMatches.length === 0 && !loading.matches && (
-                            <div className="col-span-1 md:col-span-2 glass rounded-2xl p-12 text-center border-dashed border-white/20">
-                                <p className="text-[#94a3b8] font-mono text-sm">NO TIMELINES DETECTED FOR THESE PARAMETERS.</p>
+                            <div className="col-span-1 lg:col-span-2 bg-[#050a18]/50 rounded-3xl py-24 text-center border border-dashed border-white/10">
+                                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6 text-[#6b7280]">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                </div>
+                                <p className="text-[#94a3b8] font-mono text-sm tracking-widest uppercase">
+                                    No matches found.
+                                </p>
                             </div>
                         )}
                     </div>
