@@ -1,6 +1,7 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
+import LiveDashboard from "./LiveDashboard";
 
 const API = "http://localhost:8000";
 
@@ -448,6 +449,21 @@ export default function SimulationPage() {
         </div>
       </header>
 
+      {simMode ? (
+        <LiveDashboard 
+          simResult={simResult}
+          simBalls={simBalls}
+          simRunning={simRunning}
+          target={activeInnings === 2 ? (innings["1"]?.totalScore + 1) : null}
+          winnerDeclared={winnerDeclared}
+          handlePause={handlePause}
+          handleResume={handleResume}
+          handleChangeBall={handleChangeBall}
+          simSpeed={simSpeed}
+          setSpeed={setSpeed}
+          teamColor={teamColor}
+        />
+      ) : (
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 flex flex-col lg:flex-row gap-5">
 
         {/* ══════════════════════════════════════════════════
@@ -873,6 +889,7 @@ export default function SimulationPage() {
 
         </div>{/* /right column */}
       </div>
+      )}
     </div>
   );
 }

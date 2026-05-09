@@ -70,7 +70,8 @@ def clean_and_prepare_data(deliveries_path, matches_path=None, remove_super_over
         'match_id', 'innings', 'over', 'ball_no', 'phase', 'cumulative_score', 
         'cumulative_wickets', 'legal_balls_bowled', 'balls_remaining', 'batting_team', 
         'bowling_team', 'striker', 'non_striker', 'bowler', 'runs_off_bat', 'extras', 
-        'total_runs_this_ball', 'is_wicket', 'venue', 'wides', 'noballs'
+        'total_runs_this_ball', 'is_wicket', 'venue', 'wides', 'noballs', 'byes', 'legbyes',
+        'is_legal_delivery'
     ]
 
     if 'match_winner' in df.columns:
@@ -126,6 +127,57 @@ def get_match_state(df_clean, match_id, innings, over, ball_no):
             target = first_total + 1
             runs_required = max(target - score_before, 0)
 
+    initial_batters = {}
+    initial_bowlers = {}
+
+    if not prev_rows.empty:
+        # Batters
+        for striker_name, grp in prev_rows.groupby('striker'):
+            runs = int(grp['runs_off_bat'].sum())
+            balls = int((grp['wides'] == 0).sum())
+            fours = int((grp['runs_off_bat'] == 4).sum())
+            sixes = int((grp['runs_off_bat'] == 6).sum())
+            initial_batters[striker_name] = {'runs': runs, 'balls': balls, 'fours': fours, 'sixes': sixes}
+            
+        # Non-strikers might not have faced a ball
+        for ns in prev_rows['non_striker'].unique():
+            if ns not in initial_batters:
+                initial_batters[ns] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+
+        # Bowlers
+        for bowler_name, grp in prev_rows.groupby('bowler'):
+            # Calculate balls bowled (wides and noballs don't count towards legal balls)
+            # Actually, in the dataset, is_legal_delivery tracks this
+            balls_bowled = int(grp['is_legal_delivery'].sum())
+            
+            # Runs conceded (Total runs minus byes and legbyes)
+            # We don't penalize bowler for byes/legbyes
+            runs_conceded = int((grp['total_runs_this_ball'] - grp['byes'] - grp['legbyes']).sum())
+            wickets = int(grp['is_wicket'].sum())
+            
+            # Calculate maiden overs (overs where runs_conceded == 0)
+            maidens = 0
+            for over_num, over_grp in grp.groupby('over'):
+                if int(over_grp['is_legal_delivery'].sum()) == 6:
+                    over_runs = int((over_grp['total_runs_this_ball'] - over_grp['byes'] - over_grp['legbyes']).sum())
+                    if over_runs == 0:
+                        maidens += 1
+            
+            initial_bowlers[bowler_name] = {
+                'balls_bowled': balls_bowled,
+                'runs_conceded': runs_conceded,
+                'wickets': wickets,
+                'maidens': maidens
+            }
+
+    # Ensure current striker/non_striker/bowler are in the dicts
+    if target_row['striker'] not in initial_batters:
+        initial_batters[target_row['striker']] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+    if target_row['non_striker'] not in initial_batters:
+        initial_batters[target_row['non_striker']] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+    if target_row['bowler'] not in initial_bowlers:
+        initial_bowlers[target_row['bowler']] = {'balls_bowled': 0, 'runs_conceded': 0, 'wickets': 0, 'maidens': 0}
+
     return {
         "match_id": match_id, "innings": innings, "phase": target_row['phase'],
         "batting_team": target_row['batting_team'], "bowling_team": target_row['bowling_team'],
@@ -134,7 +186,9 @@ def get_match_state(df_clean, match_id, innings, over, ball_no):
         "current_wickets": int(wickets_before), "legal_balls_bowled": int(legal_balls_bowled),
         "balls_remaining": int(balls_remaining), "target": int(target) if target else None,
         "runs_required": int(runs_required) if runs_required else None,
-        "over": over, "ball_no": ball_no
+        "over": over, "ball_no": ball_no,
+        "initialBatters": initial_batters,
+        "initialBowlers": initial_bowlers
     }
 
 def generate_remaining_batting_lineup(raw_df, match_df, initial_state):
