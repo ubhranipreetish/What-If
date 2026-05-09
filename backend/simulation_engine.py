@@ -70,7 +70,7 @@ def clean_and_prepare_data(deliveries_path, matches_path=None, remove_super_over
         'match_id', 'innings', 'over', 'ball_no', 'phase', 'cumulative_score', 
         'cumulative_wickets', 'legal_balls_bowled', 'balls_remaining', 'batting_team', 
         'bowling_team', 'striker', 'non_striker', 'bowler', 'runs_off_bat', 'extras', 
-        'total_runs_this_ball', 'is_wicket', 'venue'
+        'total_runs_this_ball', 'is_wicket', 'venue', 'wides', 'noballs'
     ]
 
     if 'match_winner' in df.columns:
@@ -626,10 +626,30 @@ class BallProbabilityEngine:
         """
         sources, weights = {}, {}
 
-        # 1. Overall career blend (always available via league priors)
+        # 1. Overall career blend (Dynamic Class-Based Gravity)
         bat_dict = self.batting_profiles.get(striker, {}).get(phase) or self.league_outcome.get(phase, {})
         bowl_dict = self.bowling_outcomes.get(bowler, {}).get(phase) or self.league_outcome.get(phase, {})
-        sources['overall'] = self._to_array(bat_dict) * 0.55 + self._to_array(bowl_dict) * 0.45
+        
+        league_dict = self.league_outcome.get(phase, {})
+        league_br = league_dict.get('4', 0) + league_dict.get('6', 0)
+        
+        bat_w, bowl_w = 0.50, 0.50
+        if league_br > 0:
+            bat_br = bat_dict.get('4', 0) + bat_dict.get('6', 0)
+            bowl_br = bowl_dict.get('4', 0) + bowl_dict.get('6', 0)
+            
+            # Batter dominance: higher boundary rate = higher dominance
+            bat_dom = (bat_br / league_br) if bat_dict.get('_balls_recorded', 0) > 30 else 1.0
+            # Bowler dominance: lower boundary rate = higher dominance
+            bowl_dom = (league_br / max(bowl_br, 0.01)) if bowl_dict.get('_balls_recorded', 0) > 30 else 1.0
+            
+            bat_dom = max(0.5, min(bat_dom, 2.5))
+            bowl_dom = max(0.5, min(bowl_dom, 2.5))
+            
+            bat_w = bat_dom / (bat_dom + bowl_dom)
+            bowl_w = bowl_dom / (bat_dom + bowl_dom)
+            
+        sources['overall'] = self._to_array(bat_dict) * bat_w + self._to_array(bowl_dict) * bowl_w
         weights['overall'] = 0.30
 
         # 2. Venue-specific
@@ -649,7 +669,7 @@ class BallProbabilityEngine:
         if phase_bat and phase_bat.get('_balls_recorded', 0) > 15:
             phase_arr = self._to_array(phase_bat)
             if phase_bowl and phase_bowl.get('_balls_recorded', 0) > 15:
-                phase_arr = phase_arr * 0.55 + self._to_array(phase_bowl) * 0.45
+                phase_arr = phase_arr * bat_w + self._to_array(phase_bowl) * bowl_w
             sources['phase'] = phase_arr
             weights['phase'] = 0.15
 
@@ -699,11 +719,24 @@ class BallProbabilityEngine:
             impact_adj = self.impact_analyzer.compute_impact_adjustment(impact_score)
             blended = blended * impact_adj
 
-        # Aggression constraints (backward compat for simulator loop)
+        # Calculate Bowler Resistance
+        bowler_resistance = 1.0
+        bowl_dict = self.bowling_outcomes.get(bowler, {}).get(phase, {})
+        league_dict = self.league_outcome.get(phase, {})
+        league_br = league_dict.get('4', 0) + league_dict.get('6', 0)
+        if league_br > 0 and bowl_dict.get('_balls_recorded', 0) > 30:
+            bowl_br = bowl_dict.get('4', 0) + bowl_dict.get('6', 0)
+            bowler_resistance = max(0.2, min(bowl_br / league_br, 1.8))
+
+        # Aggression constraints (Elasticity based on resistance)
         if aggression_factor > 1.0:
+            extra_aggression = aggression_factor - 1.0
+            effective_boundary_aggression = 1.0 + (extra_aggression * bowler_resistance)
+            wicket_spike = 1.0 + (extra_aggression * (2.0 - bowler_resistance))
+            
             for idx, key in enumerate(self.outcome_keys):
-                if key in ['4', '6']: blended[idx] *= aggression_factor
-                if key == 'W': blended[idx] *= (1.0 + ((aggression_factor - 1.0) * 0.8))
+                if key in ['4', '6']: blended[idx] *= effective_boundary_aggression
+                if key == 'W': blended[idx] *= wicket_spike
         elif aggression_factor < 1.0:
             for idx, key in enumerate(self.outcome_keys):
                 if key in ['4', '6']: blended[idx] *= aggression_factor
@@ -734,6 +767,19 @@ class BallProbabilityEngine:
             blended[self.outcome_keys.index('6')] *= 0.65
             blended[self.outcome_keys.index('0')] *= 1.20
             blended[self.outcome_keys.index('W')] *= 1.30
+
+        # Enforce realistic ceiling on boundary probability to prevent infinite boom/bust
+        current_sum = blended.sum()
+        if current_sum > 0:
+            norm_blended = blended / current_sum
+            total_bound_prob = norm_blended[self.outcome_keys.index('4')] + norm_blended[self.outcome_keys.index('6')]
+            if total_bound_prob > 0.38:  # Absolute max boundary probability ~38%
+                scale = 0.38 / total_bound_prob
+                blended[self.outcome_keys.index('4')] *= scale
+                blended[self.outcome_keys.index('6')] *= scale
+                # Re-distribute the lost probability mass back to dots and singles
+                blended[self.outcome_keys.index('0')] *= 1.2
+                blended[self.outcome_keys.index('1')] *= 1.2
 
         if blended.sum() <= 1e-9: blended = np.ones_like(blended)
         return self.outcome_keys, blended / blended.sum()
@@ -906,7 +952,12 @@ class SingleMatchSimulator:
         return state['score'], state['wickets'], match_log
 
     def simulate_representative_trajectory(self, initial_state, batting_lineup=None, bowling_plan=None,
-                                           impact_score=0.0, temperature=0.7, num_sims=30):
+                                           impact_score=0.0, temperature=0.7, num_sims=30, seed=None):
+        if seed is not None:
+            import random
+            np.random.seed(seed)
+            random.seed(seed)
+
         results = []
         chase_target = initial_state.get('target')
         win_count = 0
@@ -921,17 +972,29 @@ class SingleMatchSimulator:
                 win_count += 1
                 
         win_prob = (win_count / num_sims) * 100 if chase_target else None
+
+        # Re-seed with None to restore system randomness for the UI trajectory selection
+        if seed is not None:
+            np.random.seed(None)
+            random.seed(None)
             
-        scores = [r['score'] for r in results]
-        median_score = np.median(scores)
-        
-        best_diff = float('inf')
-        best_result = results[0]
-        for r in results:
-            diff = abs(r['score'] - median_score)
-            if diff < best_diff:
-                best_diff = diff
-                best_result = r
+        if chase_target:
+            majority_chased = win_count >= (num_sims / 2.0)
+            valid_results = [r for r in results if (r['score'] >= chase_target) == majority_chased]
+            if not valid_results: valid_results = results
+            best_result = random.choice(valid_results)
+        else:
+            scores = [r['score'] for r in results]
+            median_score = np.median(scores)
+            
+            best_diff = float('inf')
+            for r in results:
+                diff = abs(r['score'] - median_score)
+                if diff < best_diff:
+                    best_diff = diff
+                    
+            valid_results = [r for r in results if abs(r['score'] - median_score) == best_diff]
+            best_result = random.choice(valid_results)
                 
         return best_result['score'], best_result['wickets'], best_result['log'], win_prob
 

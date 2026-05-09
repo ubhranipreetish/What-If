@@ -618,9 +618,9 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
             if not row.empty:
                 r = row.iloc[0]
                 if int(r['is_wicket']) == 1: outcome = "W"
-                elif r['extras_type'] == 'wides': outcome = "wide"
-                elif r['extras_type'] == 'noballs': outcome = "no_ball"
-                else: outcome = str(int(r['batsman_runs']))
+                elif float(r['wides']) > 0: outcome = "wide"
+                elif float(r['noballs']) > 0: outcome = "no_ball"
+                else: outcome = str(int(r['runs_off_bat']))
             else:
                 outcome = "0"
                 
@@ -641,9 +641,14 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
                 state['striker'], state['non_striker'] = state['non_striker'], state['striker']
                 if bowling_plan: state['current_bowler'] = bowling_plan.pop(0)
 
-        # 5. Simulate representative trajectory for the REST of the match
+        # 5. Make it Deterministic (Stable Seed based on scenario)
+        import zlib
+        seed_str = f"{match_id}_{request.innings}_{request.over}_{request.ball_no}_{outcome}"
+        scenario_seed = zlib.adler32(seed_str.encode('utf-8'))
+
+        # 6. Simulate representative trajectory for the REST of the match
         final_score, final_wickets, log, win_prob = simulator.simulate_representative_trajectory(
-            state, lineup, bowling_plan, num_sims=20
+            state, lineup, bowling_plan, num_sims=100, seed=scenario_seed
         )
 
         return {
