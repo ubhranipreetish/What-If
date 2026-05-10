@@ -946,6 +946,7 @@ class SingleMatchSimulator:
             }
 
             current_striker = state['striker']
+            current_non_striker = state['non_striker']
             current_bowler = state['current_bowler']
 
             outcome = self.engine.simulate_delivery(
@@ -1000,7 +1001,8 @@ class SingleMatchSimulator:
                     "score": state['score'], "wickets": state['wickets'],
                     "outcome": outcome, "aggression": round(aggression, 2),
                     "confidence": round(striker_confidence, 2),
-                    "striker": current_striker, "bowler": current_bowler
+                    "striker": current_striker, "non_striker": current_non_striker,
+                    "bowler": current_bowler
                 })
 
         return state['score'], state['wickets'], match_log

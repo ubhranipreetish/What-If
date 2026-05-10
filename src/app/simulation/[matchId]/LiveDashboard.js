@@ -63,13 +63,16 @@ const LiveDashboard = ({
         return;
       }
 
-      const { outcome, runs, isWicket, extraType, striker, bowler } = ball;
+      const { outcome, runs, isWicket, extraType, striker, non_striker, bowler } = ball;
 
-      // Update names in case they changed internally
+      // Update names from the ball data
       currentStriker = striker;
+      if (non_striker) currentNonStriker = non_striker;
+      if (currentStriker === currentNonStriker) currentNonStriker = ""; 
       currentBowler = bowler;
 
       if (!batters[striker]) batters[striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+      if (currentNonStriker && !batters[currentNonStriker]) batters[currentNonStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
       if (!bowlers[bowler]) bowlers[bowler] = { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
 
       const isLegal = extraType !== 'wide' && extraType !== 'nb';
@@ -101,10 +104,23 @@ const LiveDashboard = ({
     return { batters, bowlers, currentStriker, currentNonStriker, currentBowler };
   }, [simResult, simBalls]);
 
-  if (!simResult || !liveStats) return null;
-
+  // Derive variables for rendering
   const lastElement = simBalls.length > 0 ? simBalls[simBalls.length - 1] : null;
   const isTransitioning = lastElement?.inningsTransition;
+
+  // Innings transition countdown logic
+  const [countdown, setCountdown] = React.useState(3);
+  useEffect(() => {
+    if (isTransitioning) {
+      setCountdown(3);
+      const timer = setInterval(() => {
+        setCountdown(prev => (prev > 1 ? prev - 1 : 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isTransitioning]);
+
+  if (!simResult || !liveStats) return null;
 
   // Actually, if lastBall is an overbreak, it might not have the full data, so we need to find the last real ball
   const lastRealBall = [...simBalls].reverse().find(b => !b.isOverBreak) || (lastElement || { score: simResult.startScore, wickets: simResult.startWickets, legalBalls: simResult.startBalls });
@@ -415,9 +431,12 @@ const LiveDashboard = ({
             <h1 className="text-white font-black text-6xl md:text-8xl tracking-tighter mb-4 shadow-[0_0_40px_rgba(168,85,247,0.3)]">
               TARGET: {effectiveTarget}
             </h1>
-            <p className="text-[#94a3b8] text-xl font-mono mt-8 mb-12">
+            <p className="text-[#94a3b8] text-xl font-mono mt-8 mb-4">
               Preparing Alternate 2nd Innings...
             </p>
+            <div className="text-8xl font-black text-[#a855f7] animate-bounce mb-8">
+              {countdown}
+            </div>
             <div className="flex gap-4">
               <div className="w-4 h-4 rounded-full bg-[#00e5ff] animate-bounce" style={{ animationDelay: '0ms' }} />
               <div className="w-4 h-4 rounded-full bg-[#a855f7] animate-bounce" style={{ animationDelay: '150ms' }} />

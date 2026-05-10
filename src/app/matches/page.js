@@ -1,20 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function MatchHub() {
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedTeam, setSelectedTeam] = useState(null);  
     const [selectedOpponent, setSelectedOpponent] = useState(null); 
-
-    // Dynamic State
-    const [years, setYears] = useState([]);
-    const [availableTeams, setAvailableTeams] = useState([]);
-    const [allMatches, setAllMatches] = useState([]);     
-    const [filteredMatches, setFilteredMatches] = useState([]);
-    const [loading, setLoading] = useState({ years: true, teams: false, matches: false });
 
     // Helper: convert raw team name to color
     const teamColor = (t) =>
@@ -30,7 +24,41 @@ export default function MatchHub() {
                                             t.includes("Hyderabad") ? "#FF822A" :
                                                 t.includes("Deccan") ? "#FF822A" :
                                                     t.includes("Kochi") ? "#4CAF50" :
-                                                        t.includes("Pune") ? "#9C27B0" : "#00e5ff";
+                                                        t.includes("Pune") ? "#9C27B0" :
+                                                            t.includes("Lucknow") ? "#004BA0" : "#00e5ff";
+
+    // 0️⃣ Initialize from Query Params
+    useEffect(() => {
+        const year = searchParams.get("year");
+        const teamName = searchParams.get("team");
+        const oppName = searchParams.get("opp");
+
+        if (year && year !== "null" && year !== "") setSelectedYear(year);
+        
+        if (teamName && teamName !== "null" && teamName !== "") {
+            const name = decodeURIComponent(teamName);
+            setSelectedTeam({ 
+                name: name, 
+                short: name.substring(0, 3).toUpperCase(), 
+                color: teamColor(name) 
+            });
+        }
+        if (oppName && oppName !== "null" && oppName !== "") {
+            const name = decodeURIComponent(oppName);
+            setSelectedOpponent({ 
+                name: name, 
+                short: name.substring(0, 3).toUpperCase(), 
+                color: teamColor(name) 
+            });
+        }
+    }, [searchParams]);
+
+    // Dynamic State
+    const [years, setYears] = useState([]);
+    const [availableTeams, setAvailableTeams] = useState([]);
+    const [allMatches, setAllMatches] = useState([]);     
+    const [filteredMatches, setFilteredMatches] = useState([]);
+    const [loading, setLoading] = useState({ years: true, teams: false, matches: false });
 
     // 1️⃣ Fetch Years on Mount
     useEffect(() => {
@@ -159,17 +187,24 @@ export default function MatchHub() {
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[radial-gradient(ellipse,rgba(0,229,255,0.05)_0%,transparent_70%)] pointer-events-none" />
                     
                     <p className="text-[#00e5ff] text-[10px] font-mono font-bold tracking-[0.3em] uppercase mb-4 opacity-80">
-                        Step 01
+                        The Time Machine
                     </p>
                     <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter drop-shadow-2xl">
                         Select a Match
                     </h1>
                     <p className="text-[#94a3b8] max-w-2xl mx-auto text-lg font-light leading-relaxed">
-                        Filter matches by IPL season and team to select the exact match you want to simulate.
+                        Filter matches by IPL season and team, or jump into a legendary scenario below.
                     </p>
                 </div>
 
-                {/* Filters Section */}
+                {/* ─── Separator ─── */}
+                <div className="flex items-center gap-4 text-[10px] font-mono text-[#6b7280] tracking-[0.3em] uppercase mb-12">
+                    <span className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></span>
+                    or browse all matches
+                    <span className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></span>
+                </div>
+
+                {/* ─── Filters Section ─── */}
                 <div className="bg-[#050a18] rounded-3xl p-8 mb-16 border border-white/5 shadow-2xl relative">
                     <div className="absolute inset-0 bg-gradient-to-br from-[#00e5ff]/[0.02] to-transparent pointer-events-none rounded-3xl" />
                     
@@ -377,7 +412,7 @@ export default function MatchHub() {
                                     </svg>
                                 </div>
                                 <p className="text-[#94a3b8] font-mono text-sm tracking-widest uppercase">
-                                    No matches found.
+                                    Select a season and team above to browse matches.
                                 </p>
                             </div>
                         )}

@@ -1,5 +1,5 @@
 "use client";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import LiveDashboard from "./LiveDashboard";
 
@@ -135,12 +135,53 @@ export default function SimulationPage() {
       fetch(`${API}/api/match/${matchId}/rosters`).then(r => r.json()).catch(() => null),
     ]).then(([meta, ballData, rosterData]) => {
       if (!meta || !ballData) { setError("Could not load match data. Ensure the backend is running."); setLoading(false); return; }
+      
+      // Transformation removed to keep 0-indexed data but will use +1 in labels
+
+
       setMatchMeta(meta);
       setInnings(ballData);
       setRosters(rosterData);
       setLoading(false);
     });
   }, [matchId]);
+
+  // ── Auto-select ball from query params (for Iconic Moments) ──
+  const searchParams = useSearchParams();
+  const autoSelectDone = useRef(false);
+  useEffect(() => {
+    if (autoSelectDone.current) return;
+    if (!loading && innings && searchParams.has("over") && searchParams.has("ball")) {
+      const o = parseInt(searchParams.get("over"));
+      const b = parseInt(searchParams.get("ball"));
+      const inn = parseInt(searchParams.get("inn") || "2");
+      
+      // Switch to the correct innings
+      if (inn !== activeInnings) {
+        setActiveInnings(inn);
+        return; // Let this re-trigger after innings switch
+      }
+
+      const innData = innings[String(inn)];
+      if (innData?.balls) {
+        const targetBall = innData.balls.find(ball => ball.over === o && ball.ball === b);
+        if (targetBall) {
+          const overBalls = innData.balls.filter(bl => bl.over === o);
+          const bi = overBalls.indexOf(targetBall);
+          setSelectedBall(targetBall);
+          setSelectedBallIdx(`${inn}-${o}-${bi}`);
+          setOutcomeOverride(null);
+          autoSelectDone.current = true;
+
+          // Scroll the ball into view after a tick
+          setTimeout(() => {
+            const el = document.getElementById(`ball-${inn}-${o}-${bi}`);
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 300);
+        }
+      }
+    }
+  }, [loading, innings, searchParams, activeInnings]);
 
   // ── Auto-scroll simulation feed ─────────────────────
   useEffect(() => {
@@ -242,7 +283,7 @@ export default function SimulationPage() {
         body: JSON.stringify({
           match_id: matchId,
           innings: inningsNum,
-          over: selectedBall.over,
+          over: selectedBall.over, // Now back to 0-indexed in data
           ball_no: selectedBall.ball,
           new_runs: runsOverride,
           force_wicket: outcomeOverride === "W",
@@ -285,6 +326,7 @@ export default function SimulationPage() {
         legalBalls: data.startBalls,
         target,
         striker: newStriker || selectedBall.striker,
+        non_striker: selectedBall.non_striker || "",
         bowler: newBowler || selectedBall.bowler,
         battingTeam: currentBattingTeam,
         bowlingTeam: currentBowlingTeam,
@@ -338,7 +380,7 @@ export default function SimulationPage() {
         if (isWicket) wickets++;
         if (isLegal) legalBalls++;
 
-        const overNum = Math.floor((legalBalls - 1) / 6);
+        let overNum = Math.floor((legalBalls - 1) / 6);
         const ballInOver = ((legalBalls - 1) % 6) + 1;
         
         queue.push({
@@ -354,6 +396,7 @@ export default function SimulationPage() {
           legalBalls,
           target,
           striker: entry.striker || "The Batter",
+          non_striker: entry.non_striker || "",
           bowler: entry.bowler || "The Bowler",
           battingTeam: currentBattingTeam,
           bowlingTeam: currentBowlingTeam,
@@ -449,7 +492,12 @@ export default function SimulationPage() {
           
           {/* Left: Back Button */}
           <div className="flex justify-start">
-            <button onClick={() => router.push("/matches")}
+            <button onClick={() => {
+                const year = matchMeta?.year || "";
+                const team = matchMeta?.team1?.name || "";
+                const opp = matchMeta?.team2?.name || "";
+                router.push(`/matches?year=${year}&team=${encodeURIComponent(team)}&opp=${encodeURIComponent(opp)}`);
+              }}
               className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest text-[#94a3b8] hover:text-white transition-colors group">
               <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -582,47 +630,73 @@ export default function SimulationPage() {
               )}
             </div>
 
-            {overNums.map(overNum => {
+            {overNums.map((overNum, idx) => {
               const overBalls = ballsByOver[overNum] || [];
               const lastBall = overBalls[overBalls.length - 1];
+              const firstBall = overBalls[0];
+
+              // Phase labels (using 0-indexed comparison for 1st, 7th, 16th over rows)
+              const phaseLabel = overNum === 0 ? "POWERPLAY" : overNum === 6 ? "MIDDLE OVERS" : overNum === 15 ? "DEATH OVERS" : null;
+              const phaseColor = overNum === 0 ? "#00e5ff" : overNum === 6 ? "#a855f7" : overNum === 15 ? "#ff3b5c" : null;
+
+              // Over runs total
+              const overRuns = overBalls.reduce((sum, b) => sum + (b.totalRuns || 0), 0);
+              const overWickets = overBalls.filter(b => b.isWicket).length;
+
               return (
-                <div key={overNum} className="flex items-center gap-2 sm:gap-3">
-                  {/* Over label */}
-                  <span className="text-[9px] sm:text-[10px] font-mono text-[#4b5563] w-8 shrink-0 text-right">
-                    Ov {overNum}
-                  </span>
-
-                  {/* Balls */}
-                  <div className="flex gap-1 flex-wrap">
-                    {overBalls.map((ball, bi) => {
-                      const isSelected = selectedBallIdx === `${activeInnings}-${overNum}-${bi}`;
-                      const style = ballStyle(ball, false, isSelected);
-                      return (
-                        <button
-                          key={bi}
-                          id={`ball-${activeInnings}-${overNum}-${bi}`}
-                          disabled={simMode}
-                          onClick={() => {
-                            setSelectedBall(ball);
-                            setSelectedBallIdx(`${activeInnings}-${overNum}-${bi}`);
-                            setOutcomeOverride(null);
-                          }}
-                          title={`Over ${ball.over}.${ball.ball} — ${ball.striker} vs ${ball.bowler}`}
-                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black transition-all duration-200 ${simMode ? "opacity-40 cursor-not-allowed" : "hover:scale-110 cursor-pointer"} ${isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-[#050a18] scale-110" : ""}`}
-                          style={{ background: style.bg, border: `1.5px solid ${style.border}`, color: style.text }}
-                        >
-                          {ballLabel(ball)}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Over end score */}
-                  {lastBall && (
-                    <span className="text-[9px] font-mono text-[#4b5563] ml-auto shrink-0">
-                      {lastBall.cumScore}/{lastBall.cumWickets}
-                    </span>
+                <div key={overNum}>
+                  {/* Phase label divider */}
+                  {phaseLabel && (
+                    <div className="flex items-center gap-2 mb-2 mt-1">
+                      <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${phaseColor}40, transparent)` }} />
+                      <span className="text-[8px] font-mono font-bold tracking-[0.25em] uppercase px-2" style={{ color: phaseColor }}>{phaseLabel}</span>
+                      <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to left, ${phaseColor}40, transparent)` }} />
+                    </div>
                   )}
+
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {/* Over label (1-indexed for the timeline row) */}
+                    <span className="text-[9px] sm:text-[10px] font-mono text-[#4b5563] w-8 shrink-0 text-right">
+                      Ov {overNum + 1}
+                    </span>
+
+                    {/* Balls */}
+                    <div className="flex gap-1 flex-wrap">
+                      {overBalls.map((ball, bi) => {
+                        const isSelected = selectedBallIdx === `${activeInnings}-${overNum}-${bi}`;
+                        const style = ballStyle(ball, false, isSelected);
+                        return (
+                          <button
+                            key={bi}
+                            id={`ball-${activeInnings}-${overNum}-${bi}`}
+                            disabled={simMode}
+                            onClick={() => {
+                              setSelectedBall(ball);
+                              setSelectedBallIdx(`${activeInnings}-${overNum}-${bi}`);
+                              setOutcomeOverride(null);
+                            }}
+                            title={`Over ${ball.over}.${ball.ball} — ${ball.striker} vs ${ball.bowler}`}
+                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black transition-all duration-200 ${simMode ? "opacity-40 cursor-not-allowed" : "hover:scale-110 cursor-pointer"} ${isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-[#050a18] scale-110" : ""}`}
+                            style={{ background: style.bg, border: `1.5px solid ${style.border}`, color: style.text }}
+                          >
+                            {ballLabel(ball)}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Over summary */}
+                    {lastBall && (
+                      <div className="ml-auto shrink-0 flex items-center gap-2">
+                        <span className={`text-[9px] font-mono font-bold ${overRuns >= 12 ? "text-[#00e5ff]" : overWickets >= 2 ? "text-[#ff3b5c]" : "text-[#4b5563]"}`}>
+                          {overRuns}r{overWickets > 0 ? `/${overWickets}w` : ""}
+                        </span>
+                        <span className="text-[9px] font-mono text-[#4b5563]">
+                          {lastBall.cumScore}/{lastBall.cumWickets}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

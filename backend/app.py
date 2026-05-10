@@ -258,6 +258,7 @@ def simulate_arena_full(req: ArenaFullRequest):
                     "wickets": ball['wickets'],
                     "outcome": str(outcome),
                     "striker": ball.get('striker', ''),
+                    "non_striker": ball.get('non_striker', ''),
                     "bowler": ball.get('bowler', ''),
                     "isWicket": is_wicket,
                     "extraType": extra_type,
@@ -453,7 +454,7 @@ def get_match_balls(match_id: str):
                 "over": int(row['over']),
                 "ball": int(row['ball_no']),
                 "striker": str(row['striker']),
-                "nonStriker": str(row.get('non_striker', '')),
+                "non_striker": str(row.get('non_striker', '')),
                 "bowler": str(row['bowler']),
                 "totalRuns": int(row['total_runs_this_ball']),
                 "runsOffBat": int(row['runs_off_bat']),
@@ -589,7 +590,7 @@ def get_innings_detail(match_id: str, innings: int = 1):
             "howOut": how_out,
             "bowler": str(row['bowler']),
             "striker": str(row['striker']),
-            "nonStriker": str(row.get('non_striker', '')),
+            "non_striker": str(row.get('non_striker', '')),
         })
 
     # ── Over Summaries ──
@@ -680,6 +681,10 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
         # 2. Apply modifications to the first ball if provided
         if request.new_striker: state['striker'] = request.new_striker
         if request.new_bowler: state['current_bowler'] = request.new_bowler
+        
+        # Ensure non_striker is present in state
+        if 'non_striker' not in state:
+            state['non_striker'] = "" # Fallback
         
         # 3. Build context for simulation
         lineup = generate_remaining_batting_lineup(raw_df, match_df, state)
@@ -921,6 +926,7 @@ def get_match_details(match_id: str):
 
     return {
         "id": str(match_id),
+        "year": calendar_year,
         "title": f"{team1_name} vs {team2_name}",
         "team1": {"name": team1_name, "short": team1_name[:3].upper(), "color": team_color(team1_name)},
         "team2": {"name": team2_name, "short": team2_name[:3].upper(), "color": team_color(team2_name)},

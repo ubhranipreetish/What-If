@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import ICONIC_MOMENTS from "./lib/iconicMoments";
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -9,7 +10,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-[#02050c]">
+    <div className="relative min-h-screen flex flex-col items-center overflow-hidden bg-[#02050c]">
       {/* Ambient radial glows */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full bg-[radial-gradient(circle,rgba(0,229,255,0.03)_0%,transparent_60%)] pointer-events-none" />
       <div className="absolute top-[20%] right-[10%] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(168,85,247,0.03)_0%,transparent_60%)] pointer-events-none" />
@@ -42,9 +43,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* Main Content Area */}
+      {/* Hero Section */}
       <main
-        className={`relative z-10 text-center px-6 w-full max-w-5xl mx-auto transition-all duration-[1500ms] ease-out ${mounted ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95"
+        className={`relative z-10 text-center px-6 w-full max-w-6xl mx-auto pt-24 md:pt-32 transition-all duration-[1500ms] ease-out ${mounted ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95"
           }`}
       >
         {/* Status Badge */}
@@ -70,7 +71,7 @@ export default function Home() {
         </p>
 
         {/* Dual Portals */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto text-left">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto text-left mb-24">
 
           {/* Portal 1: The Time Machine */}
           <a href="/matches" className="group relative block rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(0,229,255,0.15)] transition-all duration-700 hover:-translate-y-2">
@@ -139,6 +140,75 @@ export default function Home() {
           </a>
 
         </div>
+
+        {/* ─── Historic What-If Moments ─── */}
+        <div className={`w-full max-w-6xl mx-auto text-left mb-24 transition-all duration-[2000ms] delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-16"}`}>
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-4">
+              <div className="w-1.5 h-10 bg-gradient-to-b from-[#00e5ff] to-[#a855f7] rounded-full"></div>
+              <div>
+                <h2 className="text-2xl font-black text-white tracking-tight">Historic What-If Moments</h2>
+                <p className="text-[11px] font-mono text-[#6b7280] mt-1 tracking-[0.2em] uppercase">Jump straight into iconic IPL scenarios</p>
+              </div>
+            </div>
+            <a href="/matches" className="text-[10px] font-mono text-[#00e5ff]/60 hover:text-[#00e5ff] uppercase tracking-[0.2em] transition-colors flex items-center gap-2">
+              Browse All Matches
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {ICONIC_MOMENTS.map((moment, i) => (
+              <a
+                key={moment.id}
+                href={`/simulation/${moment.id}?over=${moment.over}&ball=${moment.ball}&inn=${moment.innings}`}
+                className="group relative flex flex-row bg-[#050a18] rounded-2xl border border-white/[0.06] hover:border-white/15 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_12px_48px_rgba(0,0,0,0.5)] overflow-hidden"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                {/* Left color accent bar */}
+                <div className="w-1.5 shrink-0 rounded-l-2xl" style={{ backgroundColor: moment.color }} />
+
+                {/* Card content */}
+                <div className="flex-1 p-5 flex flex-col gap-3 relative overflow-hidden">
+                  {/* Subtle glow on hover */}
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" style={{ background: `radial-gradient(circle at 0% 0%, ${moment.color}10, transparent 60%)` }} />
+
+                  {/* Row 1: Tag + Emoji */}
+                  <div className="flex items-center justify-between relative z-10">
+                    <span className="text-[8px] font-mono font-bold tracking-[0.15em] uppercase px-2 py-0.5 rounded border" style={{ color: moment.color, borderColor: `${moment.color}30`, backgroundColor: `${moment.color}08` }}>
+                      {moment.tag} · {moment.year}
+                    </span>
+                    <span className="text-xl opacity-30 group-hover:opacity-60 group-hover:scale-110 transition-all duration-500">{moment.emoji}</span>
+                  </div>
+
+                  {/* Row 2: Title + Subtitle */}
+                  <div className="relative z-10">
+                    <h3 className="text-[13px] font-black text-white leading-snug tracking-tight group-hover:text-white">{moment.title}</h3>
+                    <p className="text-[10px] font-medium text-[#6b7280] mt-0.5 italic">{moment.subtitle}</p>
+                  </div>
+
+                  {/* Row 3: Description */}
+                  <p className="text-[11px] text-[#94a3b8] leading-relaxed group-hover:text-[#c4cad6] transition-colors relative z-10">
+                    {moment.desc}
+                  </p>
+
+                  {/* Row 4: Venue + CTA */}
+                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/[0.04] relative z-10">
+                    <span className="text-[9px] font-mono text-[#4b5563] flex items-center gap-1.5">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      {moment.venue}
+                    </span>
+                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center gap-1" style={{ color: moment.color }}>
+                      Simulate
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+
       </main>
 
       {/* Bottom Gradient Fade */}
