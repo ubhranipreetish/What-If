@@ -15,12 +15,7 @@ const LiveDashboard = ({
 }) => {
   const feedRef = useRef(null);
 
-  // Auto-scroll the feed to the bottom
-  useEffect(() => {
-    if (feedRef.current) {
-      feedRef.current.scrollTop = feedRef.current.scrollHeight;
-    }
-  }, [simBalls]);
+  // Auto-scroll logic removed as feed is now reversed (newest at top)
 
   // Derive Live Stats by playing through simBalls
   const liveStats = useMemo(() => {
@@ -68,7 +63,7 @@ const LiveDashboard = ({
       // Update names from the ball data
       currentStriker = striker;
       if (non_striker) currentNonStriker = non_striker;
-      if (currentStriker === currentNonStriker) currentNonStriker = ""; 
+      if (currentStriker === currentNonStriker) currentNonStriker = "";
       currentBowler = bowler;
 
       if (!batters[striker]) batters[striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
@@ -151,109 +146,111 @@ const LiveDashboard = ({
   };
 
   return (
-    <div className="w-full h-[calc(100vh-64px)] flex flex-col bg-[#02050c]">
+    <div className="w-full h-[calc(100vh-64px)] flex flex-col bg-[#02050c] overflow-hidden">
 
       {/* ── Top Scoreboard Bar ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#050a18]">
-        <div className="flex items-center gap-6">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-4xl font-black text-white tracking-tighter">
-              {score}<span className="text-[#94a3b8] text-2xl font-bold">/{wickets}</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 md:px-6 py-2 md:py-4 border-b border-white/10 bg-[#050a18] gap-2 md:gap-3">
+        <div className="flex items-center justify-between sm:justify-start gap-3 md:gap-6">
+          <div className="flex items-baseline gap-1.5 md:gap-3">
+            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tighter">
+              {score}<span className="text-[#94a3b8] text-lg md:text-2xl font-bold">/{wickets}</span>
             </h1>
-            <span className="text-lg font-mono text-[#6b7280]">({overs})</span>
+            <span className="text-[10px] md:text-lg font-mono text-[#6b7280]">({overs})</span>
           </div>
-          <div className="flex items-center gap-4 text-xs font-mono">
-            <div className="px-3 py-1 rounded bg-white/5 border border-white/10">
-              <span className="text-[#6b7280] mr-2">CRR:</span>
+          <div className="flex items-center gap-1.5 md:gap-4 text-[9px] md:text-xs font-mono">
+            <div className="px-1.5 md:px-3 py-0.5 md:py-1 rounded bg-white/5 border border-white/10 shrink-0">
+              <span className="text-[#6b7280] mr-1 md:mr-2">CRR:</span>
               <span className="text-white font-bold">{rr}</span>
             </div>
             {rrr && (
-              <div className="px-3 py-1 rounded bg-white/5 border border-white/10">
-                <span className="text-[#6b7280] mr-2">RRR:</span>
+              <div className="px-1.5 md:px-3 py-0.5 md:py-1 rounded bg-white/5 border border-white/10 shrink-0">
+                <span className="text-[#6b7280] mr-1 md:mr-2">RRR:</span>
                 <span className={`font-bold ${parseFloat(rrr) > 10 ? "text-[#ff3b5c]" : "text-[#00ff88]"}`}>{rrr}</span>
               </div>
             )}
-            {effectiveTarget && (
-              <div className="px-3 py-1 rounded bg-white/5 border border-white/10 text-[#00ff88]">
-                Need {Math.max(0, effectiveTarget - score)} from {120 - legalBalls}
-              </div>
-            )}
           </div>
         </div>
-
+        
+        {effectiveTarget && (
+          <div className="px-2 py-1 md:px-3 md:py-1.5 rounded bg-[#00ff88]/5 border border-[#00ff88]/20 text-[#00ff88] text-[8px] md:text-xs font-mono font-bold tracking-wider text-center sm:text-right">
+            NEED {Math.max(0, effectiveTarget - score)} FROM {120 - legalBalls} BALLS
+          </div>
+        )}
       </div>
 
       {/* ── Live Players Stats ── */}
-      <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Striker */}
-        <div className="glass rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-[#00ff88] relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-2 opacity-10 text-4xl">🏏</div>
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#00ff88] animate-pulse"></div>
-              <h3 className="text-white font-bold text-lg">{liveStats.currentStriker}</h3>
+      <div className="px-3 md:px-6 py-2 md:py-4 grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 shrink-0">
+        <div className="flex flex-row md:contents gap-2">
+          {/* Striker */}
+          <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between border-l-2 md:border-l-4 border-l-[#00ff88] relative overflow-hidden flex-1 md:flex-none">
+            <div className="absolute top-0 right-0 p-1 md:p-2 opacity-[0.03] md:opacity-5 text-2xl md:text-4xl pointer-events-none">🏏</div>
+            <div className="flex justify-between items-start gap-1 md:gap-2">
+              <div className="flex items-center gap-1 md:gap-2 min-w-0">
+                <div className="w-1 md:w-2 h-1 md:h-2 rounded-full bg-[#00ff88] animate-pulse shrink-0"></div>
+                <h3 className="text-white font-bold text-[10px] md:text-lg truncate">{liveStats.currentStriker}</h3>
+              </div>
+              <div className="text-right shrink-0">
+                <span className="text-sm md:text-2xl font-black text-white">{b1.runs}</span>
+                <span className="text-[#94a3b8] text-[8px] md:text-sm ml-0.5 md:ml-1 font-mono">({b1.balls})</span>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-2xl font-black text-white">{b1.runs}</span>
-              <span className="text-[#94a3b8] text-sm ml-1 font-mono">({b1.balls})</span>
+            <div className="flex items-center gap-2 md:gap-4 mt-1 md:mt-2 text-[7px] md:text-xs font-mono text-[#6b7280]">
+              <span className="hidden xs:inline">SR: <span className="text-white">{b1.balls > 0 ? ((b1.runs / b1.balls) * 100).toFixed(1) : "0.0"}</span></span>
+              <span>4s: <span className="text-white">{b1.fours}</span></span>
+              <span>6s: <span className="text-white">{b1.sixes}</span></span>
             </div>
           </div>
-          <div className="flex items-center gap-4 mt-2 text-xs font-mono text-[#6b7280]">
-            <span>SR: <span className="text-white">{b1.balls > 0 ? ((b1.runs / b1.balls) * 100).toFixed(1) : "0.0"}</span></span>
-            <span>4s: <span className="text-white">{b1.fours}</span></span>
-            <span>6s: <span className="text-white">{b1.sixes}</span></span>
-          </div>
-        </div>
 
-        {/* Non-Striker */}
-        <div className="glass rounded-xl p-4 flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <h3 className="text-[#c4cad6] font-bold text-lg">{liveStats.currentNonStriker}</h3>
-            <div className="text-right opacity-80">
-              <span className="text-2xl font-black text-white">{b2.runs}</span>
-              <span className="text-[#94a3b8] text-sm ml-1 font-mono">({b2.balls})</span>
+          {/* Non-Striker */}
+          <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between flex-1 md:flex-none border-l-2 md:border-l-0 border-l-white/10">
+            <div className="flex justify-between items-start gap-1 md:gap-2">
+              <h3 className="text-[#c4cad6] font-bold text-[10px] md:text-lg truncate">{liveStats.currentNonStriker}</h3>
+              <div className="text-right opacity-80 shrink-0">
+                <span className="text-sm md:text-2xl font-black text-white">{b2.runs}</span>
+                <span className="text-[#94a3b8] text-[8px] md:text-sm ml-0.5 md:ml-1 font-mono">({b2.balls})</span>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-4 mt-2 text-xs font-mono text-[#6b7280]">
-            <span>SR: <span className="text-white">{b2.balls > 0 ? ((b2.runs / b2.balls) * 100).toFixed(1) : "0.0"}</span></span>
-            <span>4s: <span className="text-white">{b2.fours}</span></span>
-            <span>6s: <span className="text-white">{b2.sixes}</span></span>
+            <div className="flex items-center gap-2 md:gap-4 mt-1 md:mt-2 text-[7px] md:text-xs font-mono text-[#6b7280]">
+              <span className="hidden xs:inline">SR: <span className="text-white">{b2.balls > 0 ? ((b2.runs / b2.balls) * 100).toFixed(1) : "0.0"}</span></span>
+              <span>4s: <span className="text-white">{b2.fours}</span></span>
+              <span>6s: <span className="text-white">{b2.sixes}</span></span>
+            </div>
           </div>
         </div>
 
         {/* Bowler */}
-        <div className="glass rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-[#ff3b5c]">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#ff3b5c] animate-pulse"></div>
-              <h3 className="text-white font-bold text-lg">{liveStats.currentBowler}</h3>
+        <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between border-l-2 md:border-l-4 border-l-[#ff3b5c] shrink-0 sm:col-span-1">
+          <div className="flex justify-between items-center md:items-start gap-1 md:gap-2">
+            <div className="flex items-center gap-1 md:gap-2 min-w-0">
+              <div className="w-1 md:w-2 h-1 md:h-2 rounded-full bg-[#ff3b5c] animate-pulse shrink-0"></div>
+              <h3 className="text-white font-bold text-[10px] md:text-lg truncate">{liveStats.currentBowler}</h3>
             </div>
-            <div className="text-right">
-              <span className="text-lg font-black text-[#ff3b5c]">{formatOvers(currentBowlerStats.balls_bowled)}-{currentBowlerStats.maidens}-{currentBowlerStats.runs_conceded}-{currentBowlerStats.wickets}</span>
+            <div className="text-right shrink-0">
+              <span className="text-[10px] md:text-lg font-black text-[#ff3b5c] font-mono">{formatOvers(currentBowlerStats.balls_bowled)}-{currentBowlerStats.maidens}-{currentBowlerStats.runs_conceded}-{currentBowlerStats.wickets}</span>
             </div>
           </div>
-          <div className="flex items-center gap-4 mt-2 text-xs font-mono text-[#6b7280]">
+          <div className="flex items-center gap-2 md:gap-4 mt-1 md:mt-2 text-[7px] md:text-xs font-mono text-[#6b7280]">
             <span>Econ: <span className="text-white">{getEcon(currentBowlerStats.runs_conceded, currentBowlerStats.balls_bowled)}</span></span>
           </div>
         </div>
       </div>
 
       {/* ── Main Content Area (Commentary & Scorecard) ── */}
-      <div className="flex-1 overflow-hidden flex flex-col md:flex-row px-6 gap-6 pb-24">
+      <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row px-3 md:px-6 gap-6 md:gap-6 pb-28 md:pb-24 mt-2 md:mt-4 custom-scrollbar">
 
         {/* Left: Commentary Feed */}
-        <div className="w-full md:w-1/2 flex flex-col h-full bg-[#080d1e] rounded-2xl border border-white/[0.06] overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/[0.06] flex justify-between items-center bg-black/20">
-            <h3 className="text-sm font-bold text-white">Commentary</h3>
-            <span className="text-[10px] font-mono text-[#a855f7] bg-[#a855f7]/10 px-2 py-1 rounded">Alternate Timeline</span>
+        <div className="w-full lg:flex-1 flex flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-hidden shadow-2xl min-h-[450px] lg:h-full shrink-0 lg:shrink">
+          <div className="px-3 md:px-5 py-2 md:py-3 border-b border-white/[0.06] flex justify-between items-center bg-black/20">
+            <h3 className="text-[10px] md:text-sm font-bold text-white uppercase tracking-wider">Commentary</h3>
+            <span className="text-[7px] md:text-[10px] font-mono text-[#a855f7] bg-[#a855f7]/10 px-1.5 py-0.5 rounded">Timeline Feed</span>
           </div>
 
-          <div ref={feedRef} className="flex-1 overflow-y-auto p-5 space-y-3 scroll-smooth">
-            {simBalls.map((ball, i) => {
+          <div ref={feedRef} className="flex-1 overflow-y-auto p-3 md:p-5 space-y-2 md:space-y-3 scroll-smooth custom-scrollbar">
+            {[...simBalls].reverse().map((ball, i) => {
               if (ball.isOverBreak) {
                 return (
-                  <div key={i} className="py-2 px-4 my-4 rounded-lg bg-gradient-to-r from-white/5 to-transparent border-l-2 border-white/20">
-                    <p className="text-xs font-mono text-white tracking-wide">{ball.message}</p>
+                  <div key={i} className="py-1.5 px-3 md:px-4 my-2 md:my-4 rounded-lg bg-gradient-to-r from-white/5 to-transparent border-l-2 border-white/20">
+                    <p className="text-[9px] md:text-xs font-mono text-white tracking-wide">{ball.message}</p>
                   </div>
                 );
               }
@@ -262,17 +259,17 @@ const LiveDashboard = ({
               const isMajor = ball.outcome === "4" || ball.outcome === "6" || ball.outcome === "W";
 
               return (
-                <div key={i} className={`flex items-start gap-3 p-3 rounded-xl transition-all ${ball.isOverride ? 'bg-[#a855f7]/10 border border-[#a855f7]/30' : 'bg-black/20 hover:bg-black/40'}`}>
-                  <div className={`w-9 h-9 rounded flex items-center justify-center text-xs font-black shrink-0 ${isMajor ? 'ring-1 ring-offset-1 ring-offset-[#080d1e]' : ''}`}
-                    style={{ background: style.bg, border: `1px solid ${style.border}`, color: style.text, ...(isMajor ? { ringColor: style.border } : {}) }}>
+                <div key={i} className={`flex items-start gap-2 md:gap-3 p-2 md:p-3 rounded-lg md:rounded-xl transition-all ${ball.isOverride ? 'bg-[#a855f7]/10 border border-[#a855f7]/30' : 'bg-black/20 hover:bg-black/40'}`}>
+                  <div className={`w-7 h-7 md:w-9 md:h-9 rounded flex items-center justify-center text-[9px] md:text-xs font-black shrink-0 ${isMajor ? 'ring-1 ring-offset-1 ring-offset-[#080d1e]' : ''}`}
+                    style={{ background: style.bg, border: `1px solid ${style.border}`, color: style.text }}>
                     {ball.isWicket ? "W" : ball.extraType === "wide" ? "Wd" : ball.extraType === "nb" ? "NB" : String(ball.runs)}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="text-xs font-mono text-[#94a3b8]">Ov {ball.over}.{ball.ball} {ball.isOverride && <span className="text-[#a855f7] font-bold text-[9px] ml-1">OVERRIDE</span>}</span>
-                      <span className="text-xs font-mono text-white font-bold">{ball.score}/{ball.wickets}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-baseline mb-0.5 md:mb-1">
+                      <span className="text-[8px] md:text-[10px] font-mono text-[#94a3b8]">Ov {ball.over}.{ball.ball}</span>
+                      <span className="text-[9px] md:text-[10px] font-mono text-white font-bold">{ball.score}/{ball.wickets}</span>
                     </div>
-                    <p className={`text-sm ${isMajor ? 'text-white font-medium' : 'text-[#c4cad6]'}`}>{ball.commentary}</p>
+                    <p className={`text-[11px] md:text-sm leading-snug ${isMajor ? 'text-white font-medium' : 'text-[#c4cad6]'}`}>{ball.commentary}</p>
                   </div>
                 </div>
               );
@@ -281,19 +278,19 @@ const LiveDashboard = ({
         </div>
 
         {/* Right: Detailed Scorecard */}
-        <div className="w-full md:w-1/2 flex flex-col h-full bg-[#080d1e] rounded-2xl border border-white/[0.06] overflow-hidden">
+        <div className="w-full lg:w-1/2 flex flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-visible shadow-2xl lg:h-full shrink-0 lg:shrink">
           <div className="px-5 py-3 border-b border-white/[0.06] bg-black/20">
-            <h3 className="text-sm font-bold text-white">Batting Card</h3>
+            <h3 className="text-[10px] md:text-sm font-bold text-white uppercase tracking-wider">Full Scorecard</h3>
           </div>
-          <div className="flex-1 overflow-y-auto p-5">
-            <table className="w-full text-sm text-left">
-              <thead className="text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
+          <div className="p-4 md:p-5 custom-scrollbar overflow-y-visible lg:overflow-y-auto">
+            <table className="w-full text-xs md:text-sm text-left">
+              <thead className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
                 <tr>
                   <th className="pb-2 font-normal">Batter</th>
                   <th className="pb-2 font-normal text-right">R</th>
                   <th className="pb-2 font-normal text-right">B</th>
-                  <th className="pb-2 font-normal text-right">4s</th>
-                  <th className="pb-2 font-normal text-right">6s</th>
+                  <th className="pb-2 font-normal text-right hidden xs:table-cell">4s</th>
+                  <th className="pb-2 font-normal text-right hidden xs:table-cell">6s</th>
                   <th className="pb-2 font-normal text-right">SR</th>
                 </tr>
               </thead>
@@ -303,33 +300,32 @@ const LiveDashboard = ({
                   const isBatting = !stats.out;
                   return (
                     <tr key={name} className="text-[#c4cad6]">
-                      <td className="py-2.5 flex items-center gap-2">
-                        <span className={isBatting ? "text-white font-semibold" : "opacity-60"}>{name}</span>
-                        {isBatting && <span className="text-[10px] bg-white/10 px-1.5 rounded text-white">*</span>}
-                        {stats.out && <span className="text-[10px] text-[#ff3b5c]">Out</span>}
+                      <td className="py-2 md:py-2.5 flex items-center gap-2 min-w-0">
+                        <span className={`truncate ${isBatting ? "text-white font-semibold" : "opacity-60"}`}>{name}</span>
+                        {isBatting && <span className="text-[8px] bg-white/10 px-1 rounded text-white">*</span>}
+                        {stats.out && <span className="text-[8px] text-[#ff3b5c] uppercase font-bold shrink-0">Out</span>}
                       </td>
-                      <td className="py-2.5 text-right font-bold text-white">{stats.runs}</td>
-                      <td className="py-2.5 text-right font-mono text-xs">{stats.balls}</td>
-                      <td className="py-2.5 text-right font-mono text-xs">{stats.fours}</td>
-                      <td className="py-2.5 text-right font-mono text-xs">{stats.sixes}</td>
-                      <td className="py-2.5 text-right font-mono text-xs">{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : "0.0"}</td>
+                      <td className="py-2 md:py-2.5 text-right font-bold text-white">{stats.runs}</td>
+                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.balls}</td>
+                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs hidden xs:table-cell">{stats.fours}</td>
+                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs hidden xs:table-cell">{stats.sixes}</td>
+                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : "0.0"}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
 
-            <div className="mt-8 border-b border-white/[0.06] pb-2 mb-2">
-              <h3 className="text-sm font-bold text-white">Bowling Card</h3>
+            <div className="mt-6 md:mt-8 border-b border-white/[0.06] pb-2 mb-2">
+              <h3 className="text-xs md:text-sm font-bold text-white">Bowling</h3>
             </div>
-            <table className="w-full text-sm text-left">
-              <thead className="text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
+            <table className="w-full text-xs md:text-sm text-left">
+              <thead className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
                 <tr>
                   <th className="pb-2 font-normal">Bowler</th>
                   <th className="pb-2 font-normal text-right">O</th>
-                  <th className="pb-2 font-normal text-right">M</th>
                   <th className="pb-2 font-normal text-right">R</th>
-                  <th className="pb-2 font-normal text-right">W</th>
+                  <th className="pb-2 font-normal text-right font-bold text-white">W</th>
                   <th className="pb-2 font-normal text-right">Econ</th>
                 </tr>
               </thead>
@@ -338,12 +334,11 @@ const LiveDashboard = ({
                   if (stats.balls_bowled === 0 && stats.runs_conceded === 0) return null;
                   return (
                     <tr key={name} className="text-[#c4cad6]">
-                      <td className="py-2.5 text-white">{name}</td>
-                      <td className="py-2.5 text-right font-mono text-xs">{formatOvers(stats.balls_bowled)}</td>
-                      <td className="py-2.5 text-right font-mono text-xs">{stats.maidens}</td>
-                      <td className="py-2.5 text-right font-mono text-xs">{stats.runs_conceded}</td>
-                      <td className="py-2.5 text-right font-bold text-white">{stats.wickets}</td>
-                      <td className="py-2.5 text-right font-mono text-xs">{getEcon(stats.runs_conceded, stats.balls_bowled)}</td>
+                      <td className="py-2 md:py-2.5 text-white truncate">{name}</td>
+                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{formatOvers(stats.balls_bowled)}</td>
+                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.runs_conceded}</td>
+                      <td className="py-2 md:py-2.5 text-right font-bold text-white">{stats.wickets}</td>
+                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{getEcon(stats.runs_conceded, stats.balls_bowled)}</td>
                     </tr>
                   );
                 })}
@@ -354,30 +349,31 @@ const LiveDashboard = ({
       </div>
 
       {/* ── Fixed Bottom Control Bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 bg-[#050a18] border-t border-white/10 flex items-center justify-center gap-6 px-6 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <div className="fixed bottom-0 left-0 right-0 h-16 md:h-20 bg-[#050a18]/95 backdrop-blur-md border-t border-white/10 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-8 px-4 py-2 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
 
-        {simRunning ? (
-          <button onClick={handlePause} className="px-8 py-2 rounded-lg bg-[#ff6b35]/10 border border-[#ff6b35]/30 text-[#ff6b35] font-bold font-mono hover:bg-[#ff6b35]/20 transition-all flex items-center gap-2">
-            <span className="text-lg">⏸</span> PAUSE
+        <div className="flex items-center gap-2 justify-center w-full md:w-auto">
+          {simRunning ? (
+            <button onClick={handlePause} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-8 md:h-10 rounded-lg bg-[#ff6b35]/10 border border-[#ff6b35]/30 text-[#ff6b35] font-bold font-mono text-[9px] md:text-xs hover:bg-[#ff6b35]/20 transition-all flex items-center justify-center gap-1.5">
+              <span className="text-xs md:text-sm">⏸</span> <span>PAUSE</span>
+            </button>
+          ) : (
+            <button onClick={handleResume} disabled={winnerDeclared !== null} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-8 md:h-10 rounded-lg bg-[#00ff88]/10 border border-[#00ff88]/30 text-[#00ff88] font-bold font-mono text-[9px] md:text-xs hover:bg-[#00ff88]/20 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5">
+              <span className="text-xs md:text-sm">▶</span> <span>RESUME</span>
+            </button>
+          )}
+
+          <button onClick={handleChangeBall} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-8 md:h-10 rounded-lg bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] font-bold font-mono text-[9px] md:text-xs hover:bg-[#00e5ff]/20 transition-all flex items-center justify-center gap-1.5">
+            <span className="text-xs md:text-sm">↺</span> <span>RESET</span>
           </button>
-        ) : (
-          <button onClick={handleResume} disabled={winnerDeclared !== null} className="px-8 py-2 rounded-lg bg-[#00ff88]/10 border border-[#00ff88]/30 text-[#00ff88] font-bold font-mono hover:bg-[#00ff88]/20 transition-all disabled:opacity-40 flex items-center gap-2">
-            <span className="text-lg">▶</span> RESUME
-          </button>
-        )}
+        </div>
 
-        <button onClick={handleChangeBall} className="px-8 py-2 rounded-lg bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] font-bold font-mono hover:bg-[#00e5ff]/20 transition-all flex items-center gap-2">
-          <span className="text-lg">↺</span> CHANGE TIMELINE
-        </button>
+        <div className="hidden md:block h-8 w-[1px] bg-white/10 mx-2"></div>
 
-        <div className="h-8 w-[1px] bg-white/10 mx-2"></div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono text-[#6b7280] uppercase mr-2">Speed</span>
-          {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
+        <div className="flex items-center gap-1 md:gap-2 justify-center w-full md:w-auto">
+          {[{ label: "Faster", ms: 150 }, { label: "Fast", ms: 300 }, { label: "Norm", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
             <button key={s.ms}
               onClick={() => setSpeed(s.ms)}
-              className={`px-4 py-1.5 rounded text-[10px] font-mono transition-all uppercase font-bold tracking-wider ${simSpeed === s.ms ? "bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.4)] scale-105 z-10" : "bg-transparent text-[#6b7280] border border-white/10 hover:border-white/30"}`}>
+              className={`w-[55px] md:w-[70px] h-7 md:h-9 rounded text-[8px] md:text-[10px] font-mono transition-all uppercase font-bold tracking-wider flex items-center justify-center ${simSpeed === s.ms ? "bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff]" : "bg-transparent text-[#6b7280] border border-white/10 hover:border-white/30"}`}>
               {s.label}
             </button>
           ))}
@@ -387,35 +383,22 @@ const LiveDashboard = ({
 
       {/* ── Match Winner Overlay ── */}
       {winnerDeclared && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
-          <div className="glass flex flex-col items-center justify-center p-12 rounded-3xl border border-white/20 shadow-[0_0_100px_rgba(255,255,255,0.1)] transform scale-110">
-            <h2 className="text-[80px] md:text-[100px] font-black tracking-tighter leading-none text-center" style={{ color: teamColor(winnerDeclared.team), textShadow: `0 0 60px ${teamColor(winnerDeclared.team)}80` }}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-in fade-in duration-500 p-4">
+          <div className="glass flex flex-col items-center justify-center p-8 md:p-12 rounded-3xl border border-white/20 shadow-[0_0_100px_rgba(255,255,255,0.1)] w-full max-w-2xl transform scale-100 md:scale-110">
+            <h2 className="text-5xl md:text-8xl lg:text-[100px] font-black tracking-tighter leading-none text-center mb-2 md:mb-4" style={{ color: teamColor(winnerDeclared.team), textShadow: `0 0 40px ${teamColor(winnerDeclared.team)}60` }}>
               {winnerDeclared.team}
             </h2>
-            <h3 className="text-3xl md:text-5xl font-bold text-white mt-4 uppercase tracking-widest text-center">WINS</h3>
+            <h3 className="text-xl md:text-4xl font-bold text-white uppercase tracking-[0.2em] md:tracking-widest text-center">CHAMPION</h3>
 
-            <p className="text-[#c4cad6] mt-8 text-lg md:text-xl font-mono text-center">
+            <p className="text-[#c4cad6] mt-6 md:mt-8 text-sm md:text-xl font-mono text-center px-4">
               {winnerDeclared.type === "chase"
                 ? `Successfully chased ${winnerDeclared.target} — scored ${winnerDeclared.score}/${winnerDeclared.wickets}`
                 : `Defended the total — batting side fell for ${winnerDeclared.score}/${winnerDeclared.wickets}`
               }
             </p>
 
-            {simResult?.winProb !== null && winnerDeclared.type === "chase" && (
-              <div className="mt-8 inline-block bg-[#00ff88]/10 px-6 py-3 rounded-xl border border-[#00ff88]/30 text-center">
-                <span className="text-sm font-mono text-[#00ff88]/70 uppercase tracking-wider">Engine Confidence: </span>
-                <span className="text-xl font-black text-[#00ff88]">{simResult.winProb.toFixed(1)}%</span>
-              </div>
-            )}
-            {simResult?.winProb !== null && winnerDeclared.type === "defend" && (
-              <div className="mt-8 inline-block bg-[#00ff88]/10 px-6 py-3 rounded-xl border border-[#00ff88]/30 text-center">
-                <span className="text-sm font-mono text-[#00ff88]/70 uppercase tracking-wider">Engine Confidence: </span>
-                <span className="text-xl font-black text-[#00ff88]">{(100 - simResult.winProb).toFixed(1)}%</span>
-              </div>
-            )}
-
-            <button onClick={handleChangeBall} className="mt-10 px-8 py-4 rounded-xl bg-white text-black font-black uppercase tracking-wider hover:bg-gray-200 hover:scale-105 transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)]">
-              Try Another Scenario
+            <button onClick={handleChangeBall} className="mt-8 md:mt-12 px-6 md:px-10 py-3 md:py-5 rounded-xl bg-white text-black font-black text-xs md:text-sm uppercase tracking-wider hover:bg-gray-200 hover:scale-105 transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)]">
+              Restart Timeline
             </button>
           </div>
         </div>
@@ -423,24 +406,24 @@ const LiveDashboard = ({
 
       {/* ── Innings Transition Overlay ── */}
       {isTransitioning && !winnerDeclared && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#02050c]/90 backdrop-blur-md animate-in fade-in duration-500">
-          <div className="flex flex-col items-center justify-center text-center">
-            <h2 className="text-[#a855f7] font-mono text-xl tracking-[0.3em] uppercase mb-6 animate-pulse">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#02050c]/95 backdrop-blur-xl animate-in fade-in duration-500 p-6">
+          <div className="flex flex-col items-center justify-center text-center max-w-md">
+            <h2 className="text-[#a855f7] font-mono text-sm md:text-xl tracking-[0.3em] uppercase mb-4 md:mb-6 animate-pulse">
               1st Innings Complete
             </h2>
-            <h1 className="text-white font-black text-6xl md:text-8xl tracking-tighter mb-4 shadow-[0_0_40px_rgba(168,85,247,0.3)]">
+            <h1 className="text-white font-black text-5xl md:text-8xl tracking-tighter mb-4 shadow-[0_0_40px_rgba(168,85,247,0.3)]">
               TARGET: {effectiveTarget}
             </h1>
-            <p className="text-[#94a3b8] text-xl font-mono mt-8 mb-4">
-              Preparing Alternate 2nd Innings...
+            <p className="text-[#94a3b8] text-base md:text-xl font-mono mt-6 md:mt-8 mb-4">
+              Generating Alternate Timeline...
             </p>
-            <div className="text-8xl font-black text-[#a855f7] animate-bounce mb-8">
+            <div className="text-6xl md:text-8xl font-black text-[#a855f7] mb-8">
               {countdown}
             </div>
-            <div className="flex gap-4">
-              <div className="w-4 h-4 rounded-full bg-[#00e5ff] animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-4 h-4 rounded-full bg-[#a855f7] animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-4 h-4 rounded-full bg-[#ff3b5c] animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="flex gap-3 md:gap-4">
+              <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[#00e5ff] animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[#a855f7] animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[#ff3b5c] animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         </div>

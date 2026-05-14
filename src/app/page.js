@@ -9,6 +9,9 @@ export default function Home() {
     setMounted(true);
   }, []);
 
+  // Only show first 3 on home page
+  const featuredMoments = ICONIC_MOMENTS.slice(0, 3);
+
   return (
     <div className="relative min-h-screen flex flex-col items-center overflow-hidden bg-[#02050c]">
       {/* Ambient radial glows */}
@@ -18,7 +21,7 @@ export default function Home() {
 
       {/* Floating tech fragments */}
       {mounted && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-50">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-50 hidden md:block">
           {[
             { text: "BAYESIAN NETWORKS", x: "15%", y: "25%", delay: 0 },
             { text: "O(1) MEMORY", x: "78%", y: "18%", delay: 0.5 },
@@ -45,19 +48,19 @@ export default function Home() {
 
       {/* Hero Section */}
       <main
-        className={`relative z-10 text-center px-6 w-full max-w-6xl mx-auto pt-24 md:pt-32 transition-all duration-[1500ms] ease-out ${mounted ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95"
+        className={`relative z-10 text-center px-4 sm:px-6 w-full max-w-6xl mx-auto pt-20 md:pt-32 transition-all duration-[1500ms] ease-out ${mounted ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-12 scale-95"
           }`}
       >
         {/* Status Badge */}
-        <div className="mb-10 flex justify-center">
-          <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-[#050a18]/80 border border-white/5 backdrop-blur-md text-[10px] font-mono text-[#00e5ff] tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(0,229,255,0.05)]">
+        <div className="mb-8 md:mb-10 flex justify-center">
+          <div className="inline-flex items-center gap-2 md:gap-3 px-4 md:px-5 py-1.5 md:py-2 rounded-full bg-[#050a18]/80 border border-white/5 backdrop-blur-md text-[9px] md:text-[10px] font-mono text-[#00e5ff] tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(0,229,255,0.05)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] shadow-[0_0_8px_#00e5ff] animate-pulse" />
-            What-If Timeline Engine Online
+            Timeline Engine Online
           </div>
         </div>
 
         {/* Hero Headings */}
-        <h1 className="text-5xl sm:text-7xl md:text-[80px] font-black tracking-tighter leading-[1.05] mb-8">
+        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-[80px] font-black tracking-tighter leading-[1.1] md:leading-[1.05] mb-6 md:mb-8">
           <span className="text-white">History is written.</span>
           <br />
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00e5ff] via-[#a855f7] to-[#ff3b5c]">
@@ -66,36 +69,29 @@ export default function Home() {
         </h1>
 
         {/* Subtitle */}
-        <p className="text-lg md:text-xl text-[#94a3b8] max-w-2xl mx-auto mb-20 leading-relaxed font-light tracking-wide">
-          Powered by a state of the art predictive simulation engine. Explore alternate timelines or draft the ultimate team in the arena. Choose your interface.
+        <p className="text-base md:text-xl text-[#94a3b8] max-w-2xl mx-auto mb-12 md:mb-20 leading-relaxed font-light tracking-wide px-4 md:px-0">
+          Powered by a state of the art predictive simulation engine. Explore alternate timelines or draft the ultimate team in the arena.
         </p>
 
         {/* Dual Portals */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto text-left mb-24">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto text-left mb-16 md:mb-24">
 
           {/* Portal 1: The Time Machine */}
-          <a href="/matches" className="group relative block rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(0,229,255,0.15)] transition-all duration-700 hover:-translate-y-2">
+          <a href="/matches" className="group relative block rounded-[24px] md:rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(0,229,255,0.15)] transition-all duration-700 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-[#00e5ff]/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-            <div className="relative bg-[#050a18] rounded-[31px] p-10 h-full overflow-hidden flex flex-col justify-between">
+            <div className="relative bg-[#050a18] rounded-[23px] md:rounded-[31px] p-8 md:p-10 h-full overflow-hidden flex flex-col justify-between">
               
               <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[radial-gradient(circle_at_top_right,rgba(0,229,255,0.1)_0%,transparent_70%)] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
               
               <div className="relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-center mb-8 group-hover:border-[#00e5ff]/30 group-hover:bg-[#00e5ff]/5 transition-all duration-500">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#00e5ff] group-hover:scale-110 transition-transform duration-500">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                    <path d="M16.51 17.35l-.35 3.83a2 2 0 0 1-2 1.82H9.83a2 2 0 0 1-2-1.82l-.35-3.83m.01-10.7l.35-3.83A2 2 0 0 1 9.83 1h4.35a2 2 0 0 1 2 1.82l.35 3.83"></path>
-                  </svg>
-                </div>
-                <h2 className="text-3xl font-black text-white mb-4 group-hover:text-[#00e5ff] transition-colors duration-500 tracking-tight">The Time Machine</h2>
-                <p className="text-[#94a3b8] leading-relaxed mb-10 font-light text-lg">
+                <h2 className="text-2xl md:text-3xl font-black text-white mb-3 md:mb-4 group-hover:text-[#00e5ff] transition-colors duration-500 tracking-tight">The Time Machine</h2>
+                <p className="text-[#94a3b8] leading-relaxed mb-8 md:mb-10 font-light text-base md:text-lg">
                   Select legendary matches, pinpoint the exact turning point, override reality, and simulate the butterfly effect.
                 </p>
               </div>
 
-              <div className="relative z-10 flex items-center justify-between border-t border-white/5 pt-6 mt-auto">
-                <span className="text-[11px] font-mono font-bold text-[#00e5ff] tracking-[0.2em] uppercase">
+              <div className="relative z-10 flex items-center justify-between border-t border-white/5 pt-5 md:pt-6 mt-auto">
+                <span className="text-[10px] md:text-[11px] font-mono font-bold text-[#00e5ff] tracking-[0.2em] uppercase">
                   Rewrite History
                 </span>
                 <span className="w-8 h-8 rounded-full bg-[#00e5ff]/10 flex items-center justify-center text-[#00e5ff] group-hover:bg-[#00e5ff] group-hover:text-[#050a18] transition-all duration-500 transform group-hover:translate-x-2">
@@ -108,26 +104,21 @@ export default function Home() {
           </a>
 
           {/* Portal 2: The Arena */}
-          <a href="/arena" className="group relative block rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(255,59,92,0.15)] transition-all duration-700 hover:-translate-y-2">
+          <a href="/arena" className="group relative block rounded-[24px] md:rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(255,59,92,0.15)] transition-all duration-700 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-bl from-[#ff3b5c]/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-            <div className="relative bg-[#050a18] rounded-[31px] p-10 h-full overflow-hidden flex flex-col justify-between">
+            <div className="relative bg-[#050a18] rounded-[23px] md:rounded-[31px] p-8 md:p-10 h-full overflow-hidden flex flex-col justify-between">
               
               <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[radial-gradient(circle_at_bottom_left,rgba(255,59,92,0.1)_0%,transparent_70%)] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
               
               <div className="relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-center mb-8 group-hover:border-[#ff3b5c]/30 group-hover:bg-[#ff3b5c]/5 transition-all duration-500">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#ff3b5c] group-hover:scale-110 transition-transform duration-500">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                  </svg>
-                </div>
-                <h2 className="text-3xl font-black text-white mb-4 group-hover:text-[#ff3b5c] transition-colors duration-500 tracking-tight">The Arena</h2>
-                <p className="text-[#94a3b8] leading-relaxed mb-10 font-light text-lg">
-                  Draft your 11-a-side dream team from cricket's greatest legends, set your lineups, and watch the AI simulate a full T20 match ball-by-ball.
+                <h2 className="text-2xl md:text-3xl font-black text-white mb-3 md:mb-4 group-hover:text-[#ff3b5c] transition-colors duration-500 tracking-tight">The Arena</h2>
+                <p className="text-[#94a3b8] leading-relaxed mb-8 md:mb-10 font-light text-base md:text-lg">
+                  Draft your dream team from legends, set your lineups, and watch the AI simulate a full T20 match ball-by-ball.
                 </p>
               </div>
 
-              <div className="relative z-10 flex items-center justify-between border-t border-white/5 pt-6 mt-auto">
-                <span className="text-[11px] font-mono font-bold text-[#ff3b5c] tracking-[0.2em] uppercase">
+              <div className="relative z-10 flex items-center justify-between border-t border-white/5 pt-5 md:pt-6 mt-auto">
+                <span className="text-[10px] md:text-[11px] font-mono font-bold text-[#ff3b5c] tracking-[0.2em] uppercase">
                   Draft Battle
                 </span>
                 <span className="w-8 h-8 rounded-full bg-[#ff3b5c]/10 flex items-center justify-center text-[#ff3b5c] group-hover:bg-[#ff3b5c] group-hover:text-[#050a18] transition-all duration-500 transform group-hover:translate-x-2">
@@ -141,64 +132,58 @@ export default function Home() {
 
         </div>
 
-        {/* ─── Historic What-If Moments ─── */}
-        <div className={`w-full max-w-6xl mx-auto text-left mb-24 transition-all duration-[2000ms] delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-16"}`}>
-          <div className="flex items-center justify-between mb-10">
+        {/* ─── Historic What-If Moments (3 featured) ─── */}
+        <div className={`w-full max-w-6xl mx-auto text-left mb-16 md:mb-24 transition-all duration-[2000ms] delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-16"}`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 md:mb-10 gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-1.5 h-10 bg-gradient-to-b from-[#00e5ff] to-[#a855f7] rounded-full"></div>
+              <div className="w-1.5 h-8 md:h-10 bg-gradient-to-b from-[#00e5ff] to-[#a855f7] rounded-full"></div>
               <div>
-                <h2 className="text-2xl font-black text-white tracking-tight">Historic What-If Moments</h2>
-                <p className="text-[11px] font-mono text-[#6b7280] mt-1 tracking-[0.2em] uppercase">Jump straight into iconic IPL scenarios</p>
+                <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">Historic What-If Moments</h2>
+                <p className="text-[10px] font-mono text-[#6b7280] mt-1 tracking-[0.2em] uppercase">Jump straight into iconic IPL scenarios</p>
               </div>
             </div>
-            <a href="/matches" className="text-[10px] font-mono text-[#00e5ff]/60 hover:text-[#00e5ff] uppercase tracking-[0.2em] transition-colors flex items-center gap-2">
-              Browse All Matches
+            <a href="/historic" className="text-[10px] font-mono text-[#00e5ff]/60 hover:text-[#00e5ff] uppercase tracking-[0.2em] transition-colors flex items-center gap-2 self-start md:self-auto">
+              View All 12
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {ICONIC_MOMENTS.map((moment, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+            {featuredMoments.map((moment, i) => (
               <a
                 key={moment.id}
                 href={`/simulation/${moment.id}?over=${moment.over}&ball=${moment.ball}&inn=${moment.innings}`}
-                className="group relative flex flex-row bg-[#050a18] rounded-2xl border border-white/[0.06] hover:border-white/15 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_12px_48px_rgba(0,0,0,0.5)] overflow-hidden"
-                style={{ animationDelay: `${i * 60}ms` }}
+                className="group relative flex flex-row bg-[#050a18] rounded-2xl border border-white/[0.06] hover:border-white/15 transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_16px_56px_rgba(0,0,0,0.6)] overflow-hidden"
               >
                 {/* Left color accent bar */}
                 <div className="w-1.5 shrink-0 rounded-l-2xl" style={{ backgroundColor: moment.color }} />
 
                 {/* Card content */}
-                <div className="flex-1 p-5 flex flex-col gap-3 relative overflow-hidden">
+                <div className="flex-1 p-5 md:p-6 flex flex-col gap-3 relative overflow-hidden">
                   {/* Subtle glow on hover */}
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" style={{ background: `radial-gradient(circle at 0% 0%, ${moment.color}10, transparent 60%)` }} />
 
-                  {/* Row 1: Tag + Emoji */}
-                  <div className="flex items-center justify-between relative z-10">
+                  {/* Row 1: Tag */}
+                  <div className="relative z-10">
                     <span className="text-[8px] font-mono font-bold tracking-[0.15em] uppercase px-2 py-0.5 rounded border" style={{ color: moment.color, borderColor: `${moment.color}30`, backgroundColor: `${moment.color}08` }}>
-                      {moment.tag} · {moment.year}
+                      {moment.tag}
                     </span>
-                    <span className="text-xl opacity-30 group-hover:opacity-60 group-hover:scale-110 transition-all duration-500">{moment.emoji}</span>
                   </div>
 
                   {/* Row 2: Title + Subtitle */}
                   <div className="relative z-10">
-                    <h3 className="text-[13px] font-black text-white leading-snug tracking-tight group-hover:text-white">{moment.title}</h3>
-                    <p className="text-[10px] font-medium text-[#6b7280] mt-0.5 italic">{moment.subtitle}</p>
+                    <h3 className="text-base md:text-lg font-black text-white leading-tight tracking-tight">{moment.title}</h3>
+                    <p className="text-[10px] md:text-[11px] font-medium text-[#6b7280] mt-1 italic">{moment.subtitle}</p>
                   </div>
 
                   {/* Row 3: Description */}
-                  <p className="text-[11px] text-[#94a3b8] leading-relaxed group-hover:text-[#c4cad6] transition-colors relative z-10">
+                  <p className="text-[12px] text-[#94a3b8] leading-relaxed group-hover:text-[#c4cad6] transition-colors relative z-10 line-clamp-3">
                     {moment.desc}
                   </p>
 
-                  {/* Row 4: Venue + CTA */}
-                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/[0.04] relative z-10">
-                    <span className="text-[9px] font-mono text-[#4b5563] flex items-center gap-1.5">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      {moment.venue}
-                    </span>
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center gap-1" style={{ color: moment.color }}>
+                  {/* Row 4: CTA */}
+                  <div className="flex items-center justify-end mt-auto pt-3 border-t border-white/[0.04] relative z-10">
+                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center gap-1.5" style={{ color: moment.color }}>
                       Simulate
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </span>
@@ -212,7 +197,7 @@ export default function Home() {
       </main>
 
       {/* Bottom Gradient Fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#02050c] via-[#02050c]/80 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 md:h-40 bg-gradient-to-t from-[#02050c] via-[#02050c]/80 to-transparent pointer-events-none" />
     </div>
   );
 }

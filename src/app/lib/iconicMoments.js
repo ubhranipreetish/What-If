@@ -12,10 +12,6 @@ const ICONIC_MOMENTS = [
     subtitle: "The Last Ball Thriller",
     desc: "What if Shardul Thakur hit the winning boundary off Malinga's last ball instead of being bowled?",
     color: "#004BA0",
-    gradient: "from-[#004BA0] to-[#00396b]",
-    emoji: "🏆",
-    year: "2019",
-    venue: "Hyderabad",
     tag: "FINAL"
   },
   {
@@ -27,10 +23,6 @@ const ICONIC_MOMENTS = [
     subtitle: "Dhoni's Last Dance",
     desc: "What if Mohit Sharma bowled a perfect yorker to Jadeja when CSK needed 10 off the last 2 balls?",
     color: "#F9CD05",
-    gradient: "from-[#F9CD05] to-[#c9a004]",
-    emoji: "⭐",
-    year: "2023",
-    venue: "Ahmedabad",
     tag: "FINAL"
   },
   {
@@ -42,10 +34,6 @@ const ICONIC_MOMENTS = [
     subtitle: "Smith's Last Stand",
     desc: "What if Steve Smith survived the 19th over and took Pune to the target against Johnson?",
     color: "#9C27B0",
-    gradient: "from-[#9C27B0] to-[#7B1FA2]",
-    emoji: "🔥",
-    year: "2017",
-    venue: "Hyderabad",
     tag: "FINAL"
   },
   {
@@ -57,10 +45,6 @@ const ICONIC_MOMENTS = [
     subtitle: "Kohli's Heartbreak",
     desc: "What if Virat Kohli was not out on this ball and continued his masterclass to chase down 209?",
     color: "#D4213D",
-    gradient: "from-[#D4213D] to-[#a51a30]",
-    emoji: "💔",
-    year: "2016",
-    venue: "Bangalore",
     tag: "FINAL"
   },
   {
@@ -72,10 +56,6 @@ const ICONIC_MOMENTS = [
     subtitle: "Warne's Underdogs",
     desc: "What if Yusuf Pathan was dismissed before his explosive cameo that sealed the first-ever IPL title?",
     color: "#EB1B99",
-    gradient: "from-[#EB1B99] to-[#c01580]",
-    emoji: "👑",
-    year: "2008",
-    venue: "Mumbai",
     tag: "FINAL"
   },
   {
@@ -87,10 +67,6 @@ const ICONIC_MOMENTS = [
     subtitle: "Pandey's Match-Winner",
     desc: "What if Manish Pandey was caught at long-on when KKR still needed 50 off 28 balls?",
     color: "#3A225D",
-    gradient: "from-[#3A225D] to-[#2a1845]",
-    emoji: "⚡",
-    year: "2014",
-    venue: "Bangalore",
     tag: "FINAL"
   },
   {
@@ -102,10 +78,6 @@ const ICONIC_MOMENTS = [
     subtitle: "Salt's Runout Drama",
     desc: "What if Phil Salt survived the crucial runout and continued his assault on the RCB bowling attack?",
     color: "#3A225D",
-    gradient: "from-[#3A225D] to-[#2a1845]",
-    emoji: "🏏",
-    year: "2024",
-    venue: "Kolkata",
     tag: "THRILLER"
   },
   {
@@ -117,10 +89,6 @@ const ICONIC_MOMENTS = [
     subtitle: "Ashutosh's Miracle",
     desc: "What if Ashutosh Sharma survived one more ball and completed the greatest chase in IPL history?",
     color: "#D71920",
-    gradient: "from-[#D71920] to-[#a51318]",
-    emoji: "🌪️",
-    year: "2024",
-    venue: "Mohali",
     tag: "THRILLER"
   },
   {
@@ -132,10 +100,6 @@ const ICONIC_MOMENTS = [
     subtitle: "Bisla's Masterclass",
     desc: "What if Gautam Gambhir stayed on to anchor KKR's chase instead of falling for 2 at the top?",
     color: "#3A225D",
-    gradient: "from-[#3A225D] to-[#2a1845]",
-    emoji: "🎯",
-    year: "2012",
-    venue: "Chennai",
     tag: "FINAL"
   },
   {
@@ -147,10 +111,28 @@ const ICONIC_MOMENTS = [
     subtitle: "The SA Showdown",
     desc: "What if Gilchrist survived Kumble's spell and took Deccan Chargers to the title in South Africa?",
     color: "#FF822A",
-    gradient: "from-[#FF822A] to-[#cc6820]",
-    emoji: "🇿🇦",
-    year: "2009",
-    venue: "Johannesburg",
+    tag: "FINAL"
+  },
+  {
+    id: "2022_74",
+    innings: 2,
+    over: 19,
+    ball: 5,
+    title: "RR vs GT — 2022 Final",
+    subtitle: "Hardik's Coronation",
+    desc: "What if Rajasthan's tail-enders held their nerve and denied Gujarat their maiden IPL trophy?",
+    color: "#1C4E7A",
+    tag: "FINAL"
+  },
+  {
+    id: "2018_60",
+    innings: 2,
+    over: 17,
+    ball: 3,
+    title: "SRH vs CSK — 2018 Final",
+    subtitle: "Watson's Bloody Knee",
+    desc: "What if Shane Watson was dismissed before his 57-ball century that won CSK their third title?",
+    color: "#F9CD05",
     tag: "FINAL"
   }
 ];

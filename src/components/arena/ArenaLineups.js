@@ -153,18 +153,84 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
     );
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col h-[calc(100vh-80px)]">
+        <div className="max-w-7xl mx-auto px-4 py-6 md:py-8 flex flex-col min-h-screen lg:h-[calc(100vh-80px)]">
             <div className="text-center mb-6 shrink-0">
-                <h2 className="text-3xl font-black text-white tracking-widest uppercase drop-shadow-md">SET YOUR LINEUPS</h2>
-                <p className="text-[#94a3b8] font-mono text-xs mt-2">Adjust batting orders and bowling priorities before simulation begins.</p>
+                <h2 className="text-2xl md:text-3xl font-black text-white tracking-widest uppercase drop-shadow-md">SET YOUR LINEUPS</h2>
+                <p className="text-[#94a3b8] font-mono text-[10px] md:text-xs mt-2">Adjust batting orders and bowling priorities before simulation begins.</p>
             </div>
-            <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
+            <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-y-auto lg:overflow-hidden pb-4 lg:pb-0">
                 <TeamLineup name={p1} batOrder={t1BatOrder} bowlOrder={t1BowlOrder} teamId={1} isBattingFirst={t1IsBattingFirst} />
                 <TeamLineup name={p2} batOrder={t2BatOrder} bowlOrder={t2BowlOrder} teamId={2} isBattingFirst={!t1IsBattingFirst} />
             </div>
             <div className="mt-6 text-center shrink-0">
-                <GlowButton onClick={handleComplete} className="bg-[#00ff88] !text-black px-12 py-4 text-lg">LOCK LINEUPS & SIMULATE</GlowButton>
+                <GlowButton onClick={handleComplete} className="bg-[#00ff88] !text-black w-full md:w-auto px-8 md:px-12 py-3.5 md:py-4 text-base md:text-lg">LOCK LINEUPS & SIMULATE</GlowButton>
             </div>
         </div>
     );
 }
+
+const TeamLineup = ({ name, batOrder, bowlOrder, teamId, isBattingFirst, movePlayer }) => (
+    <div className="glass p-4 md:p-6 rounded-2xl md:rounded-3xl border border-white/5 flex-1 min-h-[400px] lg:h-auto flex flex-col overflow-hidden">
+        <h3 className="text-lg md:text-2xl font-black text-white truncate">{name}'S XI</h3>
+        <p className="text-[9px] md:text-[10px] font-mono tracking-widest uppercase mb-4 border-b border-white/10 pb-2" style={{ color: teamId === 1 ? '#00e5ff' : '#ff3b5c' }}>
+            {isBattingFirst ? 'Batting First' : 'Bowling First'}
+        </p>
+        
+        <div className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar">
+            {/* Batting Order */}
+            <div>
+                <h4 className="text-[10px] md:text-xs font-black text-white mb-3 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff]" />
+                    Batting Lineup
+                </h4>
+                <div className="space-y-1.5">
+                    {batOrder.map((p, i) => (
+                        <div key={`bat-${p.id}`} className="flex items-center gap-2 glass-light p-2 md:p-2.5 rounded-lg border border-white/5 bg-black/20">
+                            <span className="w-5 text-center font-mono text-[9px] md:text-[10px] text-[#6b7280]">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-white font-bold text-[11px] md:text-xs truncate">{p.name}</p>
+                                <p className="text-[8px] font-mono text-[#6b7280] uppercase">{p.role}</p>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                                <button onClick={() => movePlayer('bat', teamId, i, -1)} disabled={i === 0} className="w-7 h-7 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m18 15-6-6-6 6"/></svg>
+                                </button>
+                                <button onClick={() => movePlayer('bat', teamId, i, 1)} disabled={i === batOrder.length - 1} className="w-7 h-7 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Bowling Priority */}
+            <div>
+                <h4 className="text-[10px] md:text-xs font-black text-white mb-2 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ff3b5c]" />
+                    Bowling Priority
+                </h4>
+                <p className="text-[8px] md:text-[9px] font-mono text-[#6b7280] mb-3 leading-tight">Order in which bowlers will be utilized by AI.</p>
+                <div className="space-y-1.5">
+                    {bowlOrder.map((p, i) => (
+                        <div key={`bowl-${p.id}`} className="flex items-center gap-2 glass-light p-2 md:p-2.5 rounded-lg border border-white/5 bg-black/20">
+                            <span className="w-5 text-center font-mono text-[9px] md:text-[10px] text-[#6b7280]">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-white font-bold text-[11px] md:text-xs truncate">{p.name}</p>
+                                <p className="text-[8px] font-mono text-[#6b7280] uppercase">ECON: {p.economy}</p>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                                <button onClick={() => movePlayer('bowl', teamId, i, -1)} disabled={i === 0} className="w-7 h-7 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m18 15-6-6-6 6"/></svg>
+                                </button>
+                                <button onClick={() => movePlayer('bowl', teamId, i, 1)} disabled={i === bowlOrder.length - 1} className="w-7 h-7 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </div>
+);

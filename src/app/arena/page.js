@@ -184,96 +184,100 @@ export default function ArenaPage() {
         <div className="min-h-screen grid-bg relative">
             {/* Header / Nav */}
             {phase !== 'loading' && phase !== 'simulating' && phase !== 'done' && (
-                <header className="absolute top-0 left-0 w-full z-50 p-6 flex justify-between items-center bg-transparent pointer-events-none">
+                <header className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex justify-between items-center bg-transparent pointer-events-none">
                     <div className="pointer-events-auto">
-                        <a href="/" className="text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#ff3b5c] transition-colors border border-transparent hover:border-[#ff3b5c]/30 px-3 py-1.5 rounded-full bg-[#050a18]/50 backdrop-blur-md">
-                            ← EXIT ARENA
+                        <a href="/" className="text-[9px] md:text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#ff3b5c] transition-colors border border-white/10 hover:border-[#ff3b5c]/30 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#050a18]/60 backdrop-blur-md">
+                            ← <span className="hidden xs:inline">EXIT</span> ARENA
                         </a>
                     </div>
                 </header>
             )}
 
             {/* Rendering the appropriate phase */}
-            {phase === 'setup' && <ArenaSetup onComplete={handleSetupComplete} />}
+            <div className="pt-16 lg:pt-0">
+                {phase === 'setup' && <ArenaSetup onComplete={handleSetupComplete} />}
 
-            {phase === 'draft' && (
-                <ArenaDraft
-                    p1={p1} p2={p2}
-                    firstPick={firstPick}
-                    onDraftComplete={handleDraftComplete}
-                />
-            )}
+                {phase === 'draft' && (
+                    <ArenaDraft
+                        p1={p1} p2={p2}
+                        firstPick={firstPick}
+                        onDraftComplete={handleDraftComplete}
+                    />
+                )}
 
-            {phase === 'lineups' && (
-                <ArenaLineups
-                    p1={p1} p2={p2}
-                    t1Roster={t1Roster} t2Roster={t2Roster}
-                    onLineupsComplete={handleLineupsComplete}
-                />
-            )}
+                {phase === 'lineups' && (
+                    <ArenaLineups
+                        p1={p1} p2={p2}
+                        t1Roster={t1Roster} t2Roster={t2Roster}
+                        onLineupsComplete={handleLineupsComplete}
+                    />
+                )}
+            </div>
 
             {phase === 'loading' && <LoadingSequence onComplete={handleLoadingComplete} />}
 
             {phase === 'simulating' && results && (
-                <div className="h-screen w-full relative">
+                <div className="h-screen w-full relative flex flex-col">
                     {/* Arena Header */}
-                    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#050a18]/90 backdrop-blur-md">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-3 items-center">
+                    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#050a18]/90 backdrop-blur-md shrink-0">
+                        <div className="max-w-7xl mx-auto px-4 md:px-6 py-2 md:py-3 grid grid-cols-3 items-center">
                             <div className="flex justify-start">
                                 <button onClick={handleRestart}
-                                    className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest text-[#94a3b8] hover:text-white transition-colors group">
-                                    <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs font-mono font-bold tracking-widest text-[#94a3b8] hover:text-white transition-colors group">
+                                    <span className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 md:w-3.5 md:h-3.5">
                                             <path d="M19 12H5M12 19l-7-7 7-7"/>
                                         </svg>
                                     </span>
-                                    <span className="hidden sm:inline">NEW DRAFT</span>
+                                    <span className="hidden xs:inline">NEW DRAFT</span>
                                 </button>
                             </div>
                             <div className="flex flex-col items-center justify-center text-center">
-                                <span className="text-[#00e5ff] font-black text-lg tracking-widest uppercase drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]">
+                                <span className="text-[#00e5ff] font-black text-sm md:text-lg tracking-[0.15em] md:tracking-widest uppercase drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]">
                                     ARENA
                                 </span>
                             </div>
                             <div className="flex justify-end">
-                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20 text-[9px] font-mono text-[#00ff88] tracking-widest uppercase">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
-                                    <span className="hidden sm:inline">LIVE</span>
+                                <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20 text-[8px] md:text-[9px] font-mono text-[#00ff88] tracking-widest uppercase">
+                                    <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
+                                    <span className="hidden md:inline">LIVE</span>
                                 </div>
                             </div>
                         </div>
                     </header>
 
                     {/* Match Details Sub-Header */}
-                    <div className="bg-[#050a18]/60 border-b border-white/[0.03] py-3 backdrop-blur-sm">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-[#00e5ff] shadow-[0_0_8px_#00e5ff]" />
-                                <span className="text-white text-xs sm:text-sm font-black tracking-widest uppercase">{p1}</span>
+                    <div className="bg-[#050a18]/60 border-b border-white/[0.03] py-2 md:py-3 backdrop-blur-sm shrink-0">
+                        <div className="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-center gap-3 md:gap-4">
+                            <div className="flex items-center gap-1.5 md:gap-2">
+                                <span className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full bg-[#00e5ff] shadow-[0_0_8px_#00e5ff]" />
+                                <span className="text-white text-[10px] md:text-sm font-black tracking-widest uppercase truncate max-w-[80px] md:max-w-none">{p1}</span>
                             </div>
-                            <span className="text-[#6b7280] text-[10px] font-black italic">VS</span>
-                            <div className="flex items-center gap-2">
-                                <span className="text-white text-xs sm:text-sm font-black tracking-widest uppercase">{p2}</span>
-                                <span className="w-2 h-2 rounded-full bg-[#ff3b5c] shadow-[0_0_8px_#ff3b5c]" />
+                            <span className="text-[#6b7280] text-[8px] md:text-[10px] font-black italic">VS</span>
+                            <div className="flex items-center gap-1.5 md:gap-2">
+                                <span className="text-white text-[10px] md:text-sm font-black tracking-widest uppercase truncate max-w-[80px] md:max-w-none">{p2}</span>
+                                <span className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full bg-[#ff3b5c] shadow-[0_0_8px_#ff3b5c]" />
                             </div>
-                            <span className="text-[9px] text-[#6b7280] font-mono tracking-wider uppercase ml-2">11v11 • T20</span>
+                            <span className="hidden xs:inline text-[8px] md:text-[9px] text-[#6b7280] font-mono tracking-wider uppercase ml-2">11v11 • T20</span>
                         </div>
                     </div>
 
                     {/* LiveDashboard */}
-                    <LiveDashboard
-                        simResult={results}
-                        simBalls={displayBalls}
-                        simRunning={simRunning}
-                        target={results.targetScore}
-                        winnerDeclared={winnerDeclared}
-                        handlePause={handlePause}
-                        handleResume={handleResume}
-                        handleChangeBall={handleRestart}
-                        simSpeed={simSpeed}
-                        setSpeed={setSpeed}
-                        teamColor={teamColor}
-                    />
+                    <div className="flex-1 overflow-hidden">
+                        <LiveDashboard
+                            simResult={results}
+                            simBalls={displayBalls}
+                            simRunning={simRunning}
+                            target={results.targetScore}
+                            winnerDeclared={winnerDeclared}
+                            handlePause={handlePause}
+                            handleResume={handleResume}
+                            handleChangeBall={handleRestart}
+                            simSpeed={simSpeed}
+                            setSpeed={setSpeed}
+                            teamColor={teamColor}
+                        />
+                    </div>
                 </div>
             )}
         </div>

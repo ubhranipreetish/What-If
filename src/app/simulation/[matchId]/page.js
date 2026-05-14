@@ -113,7 +113,7 @@ export default function SimulationPage() {
   const [simRunning, setSimRunning] = useState(false);
   const [simScore, setSimScore] = useState(null);          // { runs, wickets, legalBalls }
   const [simResult, setSimResult] = useState(null);        // final result from backend
-  const [simSpeed, setSimSpeed] = useState(750); // 300=Fast, 750=Normal, 1500=Slow           // ms per ball
+  const [simSpeed, setSimSpeed] = useState(750); // 150=Faster, 300=Fast, 750=Normal, 1500=Slow
   const [winnerDeclared, setWinnerDeclared] = useState(null);
 
   const simIntervalRef = useRef(null);
@@ -238,13 +238,14 @@ export default function SimulationPage() {
       let delay = currentSpeed;
       
       if (next.inningsTransition) {
-        delay = 4000;
+        delay = Math.max(1500, currentSpeed * 4);
       }
 
       if (!next.isOverride && !next.inningsTransition && next.legalBalls > 0 && next.legalBalls % 6 === 0 && simQueueRef.current.length > 0) {
         const nextBall = simQueueRef.current[0];
-        if (nextBall) {
-          delay += 1500;
+        if (nextBall && !nextBall.inningsTransition) {
+          const overBreakDelay = Math.max(200, currentSpeed * 1.5);
+          delay += overBreakDelay;
           setTimeout(() => {
             if (simRunningRef.current) {
               setSimBalls(prev => [...prev, {
@@ -254,7 +255,7 @@ export default function SimulationPage() {
                 wickets: st.wickets,
               }]);
             }
-          }, delay - 800);
+          }, Math.max(50, delay * 0.5));
         }
       }
 
@@ -366,7 +367,8 @@ export default function SimulationPage() {
 
         if (target && score >= target) break;
         if (wickets >= 10 || legalBalls >= 120) {
-          if (!data.newTarget || target) break; 
+          if (target) break;
+          if (!data.newTarget) break;
         }
 
         const outcome = entry.outcome;
@@ -488,7 +490,7 @@ export default function SimulationPage() {
 
       {/* ── Header ────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#050a18]/90 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-3 items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 md:py-3 grid grid-cols-3 items-center">
           
           {/* Left: Back Button */}
           <div className="flex justify-start">
@@ -498,54 +500,55 @@ export default function SimulationPage() {
                 const opp = matchMeta?.team2?.name || "";
                 router.push(`/matches?year=${year}&team=${encodeURIComponent(team)}&opp=${encodeURIComponent(opp)}`);
               }}
-              className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest text-[#94a3b8] hover:text-white transition-colors group">
-              <span className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs font-mono font-bold tracking-widest text-[#94a3b8] hover:text-white transition-colors group">
+              <span className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 md:w-4 md:h-4">
                   <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
               </span>
-              <span className="hidden sm:inline">BACK</span>
+              <span className="hidden xs:inline">BACK</span>
             </button>
           </div>
 
           {/* Center: Title & Match Details */}
           <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[#00e5ff] font-black text-lg tracking-widest uppercase drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]">
+            <span className="text-[#00e5ff] font-black text-sm md:text-lg tracking-[0.15em] md:tracking-widest uppercase drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]">
               COUNTERPLAY
             </span>
           </div>
 
-          {/* Right: Empty (for balance) */}
+          {/* Right: Status */}
           <div className="flex justify-end">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20 text-[9px] font-mono text-[#00ff88] tracking-widest uppercase shadow-[0_0_10px_rgba(0,255,136,0.1)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
-              <span className="hidden sm:inline">SYSTEM ONLINE</span>
+            <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20 text-[8px] md:text-[9px] font-mono text-[#00ff88] tracking-widest uppercase shadow-[0_0_10px_rgba(0,255,136,0.1)]">
+              <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
+              <span className="hidden md:inline">SYSTEM ONLINE</span>
+              <span className="md:hidden">LIVE</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* ── Match Details Sub-Header ── */}
-      <div className="bg-[#050a18]/60 border-b border-white/[0.03] py-3 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-3 text-center sm:text-left">
+      <div className="bg-[#050a18]/60 border-b border-white/[0.03] py-2 md:py-3 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-2 md:gap-3 text-center sm:text-left">
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team1Color, boxShadow: `0 0 8px ${team1Color}` }} />
-              <span className="text-white text-xs sm:text-sm font-black tracking-widest uppercase">{team1Name}</span>
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <span className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full" style={{ backgroundColor: team1Color, boxShadow: `0 0 8px ${team1Color}` }} />
+              <span className="text-white text-[10px] sm:text-xs md:text-sm font-black tracking-widest uppercase">{team1Name}</span>
             </div>
-            <span className="text-[#6b7280] text-[10px] font-black italic">VS</span>
-            <div className="flex items-center gap-2">
-              <span className="text-white text-xs sm:text-sm font-black tracking-widest uppercase">{team2Name}</span>
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team2Color, boxShadow: `0 0 8px ${team2Color}` }} />
+            <span className="text-[#6b7280] text-[8px] md:text-[10px] font-black italic">VS</span>
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <span className="text-white text-[10px] sm:text-xs md:text-sm font-black tracking-widest uppercase">{team2Name}</span>
+              <span className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full" style={{ backgroundColor: team2Color, boxShadow: `0 0 8px ${team2Color}` }} />
             </div>
           </div>
           {matchMeta?.venue && (
-            <div className="flex items-center gap-1.5 text-[#6b7280] font-mono text-[10px] sm:text-xs uppercase tracking-widest">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="flex items-center gap-1 md:gap-1.5 text-[#6b7280] font-mono text-[8px] md:text-[10px] sm:text-xs uppercase tracking-widest">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 md:w-3 md:h-3">
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                 <circle cx="12" cy="10" r="3"></circle>
               </svg>
-              {matchMeta.venue}
+              <span className="truncate max-w-[200px] sm:max-w-none">{matchMeta.venue}</span>
             </div>
           )}
         </div>
@@ -574,20 +577,21 @@ export default function SimulationPage() {
         <div className="flex-1 min-w-0">
 
           {/* ── Innings Tabs ──────────────────────────────── */}
-          <div className="flex gap-2 mb-5">
+          <div className="flex gap-2 mb-4 md:mb-5">
             {inningsKeys.map(n => {
               const inn = innings[String(n)];
               const tc = teamColor(inn?.battingTeam);
               return (
                 <button key={n}
                   onClick={() => { setActiveInnings(n); setSelectedBall(null); setSelectedBallIdx(null); setOutcomeOverride(null); if (simMode) handleChangeBall(); }}
-                  className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-sm transition-all duration-300 border ${activeInnings === n ? "text-white scale-[1.01]" : "glass-light text-[#6b7280] hover:text-white"}`}
+                  className={`flex-1 py-2 md:py-2.5 px-3 md:px-4 rounded-xl font-bold text-xs md:text-sm transition-all duration-300 border ${activeInnings === n ? "text-white scale-[1.01]" : "glass-light text-[#6b7280] hover:text-white"}`}
                   style={activeInnings === n ? { background: tc + "22", borderColor: tc + "80", boxShadow: `0 0 16px ${tc}20` } : { borderColor: "rgba(255,255,255,0.08)" }}
                 >
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ background: tc }} />
-                    {n === 1 ? "1st Innings" : "2nd Innings"}
-                    {inn && <span className="text-xs font-mono opacity-70 ml-1">{inn.totalScore}/{inn.totalWickets}</span>}
+                  <span className="flex items-center justify-center gap-1.5 md:gap-2">
+                    <span className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full" style={{ background: tc }} />
+                    <span className="hidden xs:inline">{n === 1 ? "1st Innings" : "2nd Innings"}</span>
+                    <span className="xs:hidden">{n}st INN</span>
+                    {inn && <span className="text-[10px] md:text-xs font-mono opacity-70 ml-1">{inn.totalScore}/{inn.totalWickets}</span>}
                   </span>
                 </button>
               );
@@ -596,21 +600,16 @@ export default function SimulationPage() {
 
           {/* ── Innings Score Banner ────────────────────── */}
           {currentInnings && (
-            <div className="glass rounded-2xl p-4 mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-mono text-[#6b7280] tracking-widest uppercase mb-1">Batting</p>
-                <p className="text-white font-black text-lg">{currentInnings.battingTeam}</p>
+            <div className="glass rounded-2xl p-4 mb-4 md:mb-5 flex items-center justify-between border border-white/[0.05]">
+              <div className="min-w-0 flex-1 mr-4">
+                <p className="text-[9px] md:text-[10px] font-mono text-[#6b7280] tracking-widest uppercase mb-1">Batting</p>
+                <p className="text-white font-black text-base md:text-lg truncate">{currentInnings.battingTeam}</p>
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-black text-white">{currentInnings.totalScore}<span className="text-[#6b7280] text-lg">/{currentInnings.totalWickets}</span></p>
+              <div className="text-right shrink-0">
+                <p className="text-2xl md:text-3xl font-black text-white leading-none mb-1">{currentInnings.totalScore}<span className="text-[#6b7280] text-sm md:text-lg">/{currentInnings.totalWickets}</span></p>
                 {target && activeInnings === 2 && (
-                  <p className="text-xs font-mono text-[#94a3b8]">
+                  <p className="text-[9px] md:text-xs font-mono text-[#94a3b8]">
                     Target: <span className="text-[#00e5ff]">{target}</span>
-                    {" · "}
-                    {currentInnings.totalScore >= target
-                      ? <span className="text-[#00ff88]">Won</span>
-                      : <span className="text-[#ff3b5c]">{target - currentInnings.totalScore} short</span>
-                    }
                   </p>
                 )}
               </div>
@@ -618,14 +617,15 @@ export default function SimulationPage() {
           )}
 
           {/* ── Ball Grid — Over by Over ─────────────────── */}
-          <div className="glass rounded-2xl p-4 sm:p-5 space-y-3">
+          <div className="glass rounded-2xl p-4 sm:p-5 space-y-3 border border-white/[0.05]">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono text-[#6b7280] tracking-widest uppercase">
-                Click any ball to alter the timeline
+              <span className="text-[8px] md:text-[10px] font-mono text-[#6b7280] tracking-widest uppercase">
+                <span className="hidden xs:inline">Click any ball to alter the timeline</span>
+                <span className="xs:hidden">Tap a ball to override</span>
               </span>
               {selectedBall && !simMode && (
-                <span className="text-[10px] font-mono text-[#00e5ff]">
-                  Over {selectedBall.over}.{selectedBall.ball} selected
+                <span className="text-[8px] md:text-[10px] font-mono text-[#00e5ff]">
+                  Ov {selectedBall.over}.{selectedBall.ball}
                 </span>
               )}
             </div>
@@ -633,34 +633,28 @@ export default function SimulationPage() {
             {overNums.map((overNum, idx) => {
               const overBalls = ballsByOver[overNum] || [];
               const lastBall = overBalls[overBalls.length - 1];
-              const firstBall = overBalls[0];
 
-              // Phase labels (using 0-indexed comparison for 1st, 7th, 16th over rows)
               const phaseLabel = overNum === 0 ? "POWERPLAY" : overNum === 6 ? "MIDDLE OVERS" : overNum === 15 ? "DEATH OVERS" : null;
               const phaseColor = overNum === 0 ? "#00e5ff" : overNum === 6 ? "#a855f7" : overNum === 15 ? "#ff3b5c" : null;
 
-              // Over runs total
               const overRuns = overBalls.reduce((sum, b) => sum + (b.totalRuns || 0), 0);
               const overWickets = overBalls.filter(b => b.isWicket).length;
 
               return (
                 <div key={overNum}>
-                  {/* Phase label divider */}
                   {phaseLabel && (
                     <div className="flex items-center gap-2 mb-2 mt-1">
                       <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to right, ${phaseColor}40, transparent)` }} />
-                      <span className="text-[8px] font-mono font-bold tracking-[0.25em] uppercase px-2" style={{ color: phaseColor }}>{phaseLabel}</span>
+                      <span className="text-[7px] md:text-[8px] font-mono font-bold tracking-[0.25em] uppercase px-2" style={{ color: phaseColor }}>{phaseLabel}</span>
                       <div className="h-[1px] flex-1" style={{ background: `linear-gradient(to left, ${phaseColor}40, transparent)` }} />
                     </div>
                   )}
 
                   <div className="flex items-center gap-2 sm:gap-3">
-                    {/* Over label (1-indexed for the timeline row) */}
-                    <span className="text-[9px] sm:text-[10px] font-mono text-[#4b5563] w-8 shrink-0 text-right">
-                      Ov {overNum + 1}
+                    <span className="text-[8px] md:text-[10px] font-mono text-[#4b5563] w-7 md:w-8 shrink-0 text-right">
+                      {overNum + 1}
                     </span>
 
-                    {/* Balls */}
                     <div className="flex gap-1 flex-wrap">
                       {overBalls.map((ball, bi) => {
                         const isSelected = selectedBallIdx === `${activeInnings}-${overNum}-${bi}`;
@@ -675,8 +669,7 @@ export default function SimulationPage() {
                               setSelectedBallIdx(`${activeInnings}-${overNum}-${bi}`);
                               setOutcomeOverride(null);
                             }}
-                            title={`Over ${ball.over}.${ball.ball} — ${ball.striker} vs ${ball.bowler}`}
-                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black transition-all duration-200 ${simMode ? "opacity-40 cursor-not-allowed" : "hover:scale-110 cursor-pointer"} ${isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-[#050a18] scale-110" : ""}`}
+                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[8px] sm:text-[10px] font-black transition-all duration-200 ${simMode ? "opacity-40 cursor-not-allowed" : "hover:scale-110 cursor-pointer"} ${isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-[#050a18] scale-110" : ""}`}
                             style={{ background: style.bg, border: `1.5px solid ${style.border}`, color: style.text }}
                           >
                             {ballLabel(ball)}
@@ -685,13 +678,12 @@ export default function SimulationPage() {
                       })}
                     </div>
 
-                    {/* Over summary */}
                     {lastBall && (
-                      <div className="ml-auto shrink-0 flex items-center gap-2">
-                        <span className={`text-[9px] font-mono font-bold ${overRuns >= 12 ? "text-[#00e5ff]" : overWickets >= 2 ? "text-[#ff3b5c]" : "text-[#4b5563]"}`}>
+                      <div className="ml-auto shrink-0 flex items-center gap-1.5 md:gap-2">
+                        <span className={`text-[8px] md:text-[9px] font-mono font-bold ${overRuns >= 12 ? "text-[#00e5ff]" : overWickets >= 2 ? "text-[#ff3b5c]" : "text-[#4b5563]"}`}>
                           {overRuns}r{overWickets > 0 ? `/${overWickets}w` : ""}
                         </span>
-                        <span className="text-[9px] font-mono text-[#4b5563]">
+                        <span className="text-[8px] md:text-[9px] font-mono text-[#4b5563] hidden xs:inline">
                           {lastBall.cumScore}/{lastBall.cumWickets}
                         </span>
                       </div>
@@ -706,76 +698,71 @@ export default function SimulationPage() {
         {/* ══════════════════════════════════════════════════
             RIGHT COLUMN — Controls + Simulation Feed
         ══════════════════════════════════════════════════ */}
-        <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 flex flex-col gap-4">
+        <div className="w-full lg:w-[360px] xl:w-[400px] shrink-0 flex flex-col gap-4">
 
           {/* ── Selected Ball Info ─────────────────────── */}
           {!simMode && (
-            <div className={`glass rounded-2xl p-5 transition-all duration-300 ${selectedBall ? "border border-[#00e5ff]/20 shadow-[0_0_20px_rgba(0,229,255,0.07)]" : "border border-white/[0.06]"}`}>
+            <div className={`glass rounded-2xl p-4 md:p-5 transition-all duration-300 ${selectedBall ? "border border-[#00e5ff]/20 shadow-[0_0_20px_rgba(0,229,255,0.07)]" : "border border-white/[0.06]"}`}>
               {!selectedBall ? (
-                <div className="text-center py-8">
-                  <div className="text-4xl mb-3">👈</div>
-                  <p className="text-[#94a3b8] font-mono text-sm">Select a ball from the timeline to begin your what-if scenario</p>
+                <div className="text-center py-6 md:py-8">
+                  <div className="text-3xl md:text-4xl mb-3">👈</div>
+                  <p className="text-[#94a3b8] font-mono text-xs md:text-sm">Select a ball to begin</p>
                 </div>
               ) : (
                 <>
                   {/* Ball header */}
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-[10px] font-mono text-[#6b7280] tracking-widest uppercase">Selected Ball</p>
-                      <h2 className="text-2xl font-black text-white">Over {selectedBall.over}.{selectedBall.ball}</h2>
+                      <p className="text-[9px] md:text-[10px] font-mono text-[#6b7280] tracking-widest uppercase">Selected Ball</p>
+                      <h2 className="text-xl md:text-2xl font-black text-white">Over {selectedBall.over}.{selectedBall.ball}</h2>
                     </div>
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-black`}
+                    <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-xs md:text-sm font-black`}
                       style={(() => { const s = ballStyle(selectedBall); return { background: s.bg, border: `2px solid ${s.border}`, color: s.text }; })()}>
                       {ballLabel(selectedBall)}
                     </div>
                   </div>
 
                   {/* Event Commentary */}
-                  <div className="glass-light rounded-xl p-5 mb-6 border border-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-[10px] font-mono text-[#00e5ff] uppercase tracking-widest flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff] animate-pulse shadow-[0_0_8px_#00e5ff]"></span>
+                  <div className="glass-light rounded-xl p-4 md:p-5 mb-5 md:mb-6 border border-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
+                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                      <p className="text-[9px] md:text-[10px] font-mono text-[#00e5ff] uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-[#00e5ff] animate-pulse shadow-[0_0_8px_#00e5ff]"></span>
                         Timeline Event
                       </p>
-                      <p className="text-[#6b7280] font-mono text-[10px] bg-white/5 px-2 py-1 rounded">
-                        SCORE: {selectedBall.cumScore}/{selectedBall.cumWickets}
+                      <p className="text-[#6b7280] font-mono text-[8px] md:text-[10px] bg-white/5 px-1.5 py-0.5 rounded">
+                        {selectedBall.cumScore}/{selectedBall.cumWickets}
                       </p>
                     </div>
                     
-                    <p className="text-white text-[15px] font-medium leading-relaxed">
+                    <p className="text-white text-sm md:text-[15px] font-medium leading-relaxed">
                       <span className="font-bold text-[#a855f7]">{selectedBall.bowler}</span> to <span className="font-bold text-[#00ff88]">{selectedBall.striker}</span>,{" "}
                       {selectedBall.isWicket
-                        ? <span className="text-[#ff3b5c] font-black uppercase tracking-wider drop-shadow-md">Wicket!</span>
-                        : selectedBall.extraType === "wide"
-                          ? <span className="text-[#94a3b8] italic">Wide ball.</span>
-                          : selectedBall.extraType === "nb"
-                            ? <span className="text-[#94a3b8] italic">No ball.</span>
-                            : `${selectedBall.totalRuns} run${selectedBall.totalRuns !== 1 ? "s" : ""}.`
+                        ? <span className="text-[#ff3b5c] font-black uppercase tracking-wider">Wicket!</span>
+                        : `${selectedBall.totalRuns} run${selectedBall.totalRuns !== 1 ? "s" : ""}.`
                       }
                     </p>
                   </div>
 
                   {/* Outcome override buttons */}
                   <div className="mb-4">
-                    <p className="text-[10px] font-mono text-[#00e5ff] tracking-widest uppercase mb-3">Change the Outcome</p>
-                    <div className="grid grid-cols-5 gap-1.5">
+                    <p className="text-[9px] md:text-[10px] font-mono text-[#00e5ff] tracking-widest uppercase mb-3">Change Outcome</p>
+                    <div className="grid grid-cols-5 gap-1 md:gap-1.5">
                       {[
                         { label: "•", val: "0", desc: "Dot", color: "#6b7280" },
-                        { label: "1", val: "1", desc: "1 Run", color: "#00ff88" },
-                        { label: "2", val: "2", desc: "2 Runs", color: "#00ff88" },
-                        { label: "3", val: "3", desc: "3 Runs", color: "#00ff88" },
+                        { label: "1", val: "1", desc: "1R", color: "#00ff88" },
+                        { label: "2", val: "2", desc: "2R", color: "#00ff88" },
+                        { label: "3", val: "3", desc: "3R", color: "#00ff88" },
                         { label: "4", val: "4", desc: "Four", color: "#00e5ff" },
                         { label: "6", val: "6", desc: "Six", color: "#ffd700" },
-                        { label: "W", val: "W", desc: "Wicket", color: "#ff3b5c" },
+                        { label: "W", val: "W", desc: "Out", color: "#ff3b5c" },
                         { label: "Wd", val: "wide", desc: "Wide", color: "#a855f7" },
-                        { label: "NB", val: "nb", desc: "No Ball", color: "#a855f7" },
-                        { label: "↺", val: null, desc: "Keep Original", color: "#6b7280" },
+                        { label: "NB", val: "nb", desc: "NB", color: "#a855f7" },
+                        { label: "↺", val: null, desc: "Reset", color: "#6b7280" },
                       ].map(({ label, val, desc, color }) => (
                         <button
                           key={desc}
                           onClick={() => setOutcomeOverride(val)}
-                          title={desc}
-                          className={`py-2 rounded-lg text-xs font-black transition-all duration-200 ${outcomeOverride === val ? "scale-105 ring-2 ring-offset-1 ring-offset-[#050a18]" : "hover:scale-105 opacity-70 hover:opacity-100"}`}
+                          className={`py-1.5 md:py-2 rounded-lg text-xs font-black transition-all duration-200 ${outcomeOverride === val ? "scale-105 ring-1 ring-offset-1 ring-offset-[#050a18]" : "hover:scale-105 opacity-70 hover:opacity-100"}`}
                           style={{
                             background: outcomeOverride === val ? color + "28" : "rgba(255,255,255,0.05)",
                             border: `1.5px solid ${outcomeOverride === val ? color : "rgba(255,255,255,0.1)"}`,
@@ -784,7 +771,7 @@ export default function SimulationPage() {
                           }}
                         >
                           {label}
-                          <span className="block text-[8px] font-normal mt-0.5 opacity-70">{desc}</span>
+                          <span className="block text-[7px] md:text-[8px] font-normal opacity-70">{desc}</span>
                         </button>
                       ))}
                     </div>
@@ -793,7 +780,7 @@ export default function SimulationPage() {
                   {/* Speed selector */}
                   <div className="flex items-center gap-2 mb-6">
                     <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-widest mr-2">Sim Speed</span>
-                    {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
+                    {[{ label: "Faster", ms: 150 }, { label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
                       <button key={s.ms}
                         onClick={() => setSpeed(s.ms)}
                         className={`flex-1 py-2 rounded-lg text-[10px] font-mono transition-all uppercase font-bold tracking-wider ${simSpeed === s.ms ? "bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.4)] scale-105 z-10" : "bg-white/5 text-[#6b7280] border border-white/10 hover:border-white/30 hover:text-white"}`}>
@@ -866,7 +853,7 @@ export default function SimulationPage() {
               {/* Speed during sim */}
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-mono text-[#6b7280] uppercase">Speed</span>
-                {[{ label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
+                {[{ label: "Faster", ms: 150 }, { label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
                   <button key={s.ms}
                     onClick={() => { setSpeed(s.ms); }}
                     className={`flex-1 py-1.5 rounded-lg text-[9px] font-mono transition-all ${simSpeed === s.ms ? "bg-[#a855f7]/15 text-[#a855f7] border border-[#a855f7]/30" : "glass-light text-[#6b7280] border border-white/10"}`}>
@@ -956,30 +943,6 @@ export default function SimulationPage() {
             </div>
           )}
 
-          {/* ── Scorecard summary ─────────────────────── */}
-          {!simMode && innings1 && innings2 && (
-            <div className="glass rounded-2xl p-4">
-              <p className="text-[10px] font-mono text-[#6b7280] tracking-widest uppercase mb-3">Match Summary</p>
-              <div className="space-y-3">
-                {[["1", innings1], ["2", innings2]].map(([n, inn]) => (
-                  <div key={n} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ background: teamColor(inn.battingTeam) }} />
-                      <span className="text-xs font-semibold text-white">{teamShort(inn.battingTeam)}</span>
-                      <span className="text-[9px] font-mono text-[#6b7280]">{n === "1" ? "(1st)" : "(2nd)"}</span>
-                    </div>
-                    <span className="text-sm font-black text-white">{inn.totalScore}/{inn.totalWickets}</span>
-                  </div>
-                ))}
-                {matchMeta?.winner && (
-                  <div className="pt-2 border-t border-white/[0.06]">
-                    <p className="text-[9px] font-mono text-[#6b7280] uppercase">Original Winner</p>
-                    <p className="text-[#00ff88] font-bold text-xs mt-0.5">{matchMeta.winner}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
         </div>{/* /right column */}
       </div>

@@ -117,40 +117,40 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
     );
 
     return (
-        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-6 h-[calc(100vh-80px)] flex flex-col">
+        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 md:py-6 flex flex-col min-h-screen lg:h-[calc(100vh-80px)]">
 
             {/* Draft Header */}
-            <div className="text-center mb-4">
+            <div className="text-center mb-4 shrink-0">
                 {!isDraftComplete ? (
-                    <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full glass-light border border-white/10 shadow-lg">
+                    <div className="inline-flex flex-wrap items-center justify-center gap-2 md:gap-3 px-4 md:px-5 py-2 md:py-2.5 rounded-full glass-light border border-white/10 shadow-lg">
                         <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: activeTeamId === 1 ? '#00e5ff' : '#ff3b5c' }} />
-                        <span className="text-xs font-bold text-white tracking-wide uppercase">
+                        <span className="text-[10px] md:text-xs font-bold text-white tracking-wide uppercase">
                             ON THE CLOCK: <span style={{ color: activeTeamId === 1 ? '#00e5ff' : '#ff3b5c' }}>{activePlayerName}</span>
                         </span>
-                        <span className="text-[10px] text-[#6b7280] font-mono ml-3 border-l border-white/20 pl-3">PICK {currentPickIndex + 1} OF 22</span>
+                        <span className="text-[9px] md:text-[10px] text-[#6b7280] font-mono border-l border-white/20 pl-2 md:pl-3 ml-1 md:ml-0">PICK {currentPickIndex + 1}/22</span>
                     </div>
                 ) : (
                     <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-[#00ff88]/20 border border-[#00ff88]/50 shadow-[0_0_20px_rgba(0,255,136,0.2)]">
-                        <span className="text-sm font-bold text-[#00ff88] tracking-widest uppercase">
-                            DRAFT COMPLETE. LOCKING ROSTERS...
+                        <span className="text-xs md:text-sm font-bold text-[#00ff88] tracking-widest uppercase">
+                            DRAFT COMPLETE. LOCKING...
                         </span>
                     </div>
                 )}
             </div>
 
             {/* Split Screen Draft UI */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 overflow-hidden">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 overflow-y-auto lg:overflow-hidden pb-4 lg:pb-0">
 
                 {/* Team 1 Panel */}
-                <div className="glass rounded-2xl p-4 border border-white/5 flex flex-col relative h-[50vh] lg:h-auto">
+                <div className="glass rounded-2xl p-4 border border-white/5 flex flex-col relative min-h-[300px] lg:h-auto">
                     <div className="absolute top-0 right-0 w-full h-[150px] bg-[radial-gradient(ellipse_at_top,#00e5ff10_0%,transparent_70%)] pointer-events-none" />
 
-                    <h2 className="text-lg font-black text-white drop-shadow-md truncate">{p1}'S XI</h2>
+                    <h2 className="text-base md:text-lg font-black text-white drop-shadow-md truncate">{p1}'S XI</h2>
                     <p className="text-[#00e5ff] text-[9px] font-mono font-bold tracking-widest uppercase border-b border-white/10 pb-2 mb-2">TEAM ONE</p>
                     
                     <RosterStatus counts={t1Counts} />
 
-                    <div className="space-y-2 flex-1 overflow-y-auto pr-1 mt-3">
+                    <div className="space-y-2 flex-1 overflow-y-auto pr-1 mt-3 custom-scrollbar">
                         {Array.from({ length: 11 }, (_, i) => {
                             const num = i + 1;
                             const p = t1Roster[i];
@@ -163,7 +163,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                 </div>
 
                 {/* Central Player Pool (Hides when draft complete) */}
-                <div className={`lg:col-span-2 glass-light rounded-2xl border border-white/5 flex flex-col overflow-hidden transition-opacity duration-1000 h-[50vh] lg:h-auto ${isDraftComplete ? 'opacity-0' : 'opacity-100'}`}>
+                <div className={`lg:col-span-2 glass-light rounded-2xl border border-white/5 flex flex-col overflow-hidden transition-opacity duration-1000 min-h-[400px] lg:h-auto ${isDraftComplete ? 'opacity-0 h-0 lg:h-auto' : 'opacity-100'}`}>
                     {/* Filters & Search */}
                     <div className="p-3 border-b border-white/5 bg-[#050a18]/40">
                         <input
@@ -171,14 +171,14 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                             placeholder="🔍 Search legends..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white mb-2 focus:outline-none focus:border-[#a855f7]"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white mb-2 focus:outline-none focus:border-[#a855f7]"
                         />
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
                             {['all', 'batter', 'wk', 'allrounder', 'bowler'].map(f => (
                                 <button
                                     key={f}
                                     onClick={() => setFilter(f)}
-                                    className={`flex-1 py-1 rounded text-[9px] font-mono font-bold uppercase tracking-widest transition-colors ${filter === f ? 'bg-[#a855f7] text-[#050a18]' : 'bg-white/5 text-[#94a3b8] hover:bg-white/10'}`}
+                                    className={`shrink-0 px-3 py-1.5 rounded text-[9px] font-mono font-bold uppercase tracking-widest transition-colors ${filter === f ? 'bg-[#a855f7] text-[#050a18]' : 'bg-white/5 text-[#94a3b8] hover:bg-white/10'}`}
                                 >
                                     {f === 'allrounder' ? 'AR' : f}
                                 </button>
@@ -187,7 +187,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                     </div>
 
                     {/* Available Players List */}
-                    <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
                         {availablePlayers.map(p => {
                             const isLegalPick = canPick(p, activeRoster);
                             return (
@@ -197,7 +197,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                                     disabled={isDraftComplete || !isLegalPick}
                                     className={`w-full text-left glass rounded-lg border p-3 flex items-center gap-3 transition-all group ${isLegalPick ? 'border-white/5 hover:border-white/20 hover:bg-white/5' : 'border-red-500/10 bg-red-500/5 opacity-50 cursor-not-allowed'}`}
                                 >
-                                    <div className="w-10 h-10 rounded bg-[#050a18]/50 flex items-center justify-center border border-white/10 font-black text-white text-xs shadow-inner shrink-0" style={{ borderColor: p.imgColor }}>
+                                    <div className="w-10 h-10 rounded bg-[#050a18]/50 flex items-center justify-center border border-white/10 font-black text-white text-[10px] shadow-inner shrink-0" style={{ borderColor: p.imgColor }}>
                                         {p.cost}M
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -207,7 +207,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                                         </p>
                                     </div>
                                     {isLegalPick && (
-                                        <div className="text-[#a855f7] font-bold text-[10px] bg-[#a855f7]/10 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="text-[#a855f7] font-bold text-[10px] bg-[#a855f7]/10 px-2.5 py-1.5 rounded md:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                             DRAFT
                                         </div>
                                     )}
@@ -218,15 +218,15 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                 </div>
 
                 {/* Team 2 Panel */}
-                <div className="glass rounded-2xl p-4 border border-white/5 flex flex-col relative h-[50vh] lg:h-auto">
+                <div className="glass rounded-2xl p-4 border border-white/5 flex flex-col relative min-h-[300px] lg:h-auto">
                     <div className="absolute top-0 left-0 w-full h-[150px] bg-[radial-gradient(ellipse_at_top,#ff3b5c10_0%,transparent_70%)] pointer-events-none" />
 
-                    <h2 className="text-lg font-black text-white drop-shadow-md text-right truncate">{p2}'S XI</h2>
+                    <h2 className="text-base md:text-lg font-black text-white drop-shadow-md text-right truncate">{p2}'S XI</h2>
                     <p className="text-[#ff3b5c] text-[9px] font-mono font-bold tracking-widest uppercase border-b border-white/10 pb-2 mb-2 text-right">TEAM TWO</p>
 
                     <RosterStatus counts={t2Counts} />
 
-                    <div className="space-y-2 flex-1 overflow-y-auto pl-1 mt-3">
+                    <div className="space-y-2 flex-1 overflow-y-auto pl-1 mt-3 custom-scrollbar">
                         {Array.from({ length: 11 }, (_, i) => {
                             const num = i + 1;
                             const p = t2Roster[i];
