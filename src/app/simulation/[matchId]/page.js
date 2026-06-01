@@ -1,6 +1,6 @@
 "use client";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
 import LiveDashboard from "./LiveDashboard";
 
 const API = "http://localhost:8000";
@@ -86,7 +86,7 @@ function randomCommentary(outcome, batter, bowler) {
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function SimulationPage() {
+function SimulationPageContent() {
   const { matchId } = useParams();
   const router = useRouter();
 
@@ -239,6 +239,10 @@ export default function SimulationPage() {
       
       if (next.inningsTransition) {
         delay = Math.max(1500, currentSpeed * 4);
+        // Auto-switch the active innings tab so alternateBalls, handleBranchSimulate,
+        // and the target prop all use the correct innings number going forward.
+        const nextInnings = next.innings != null ? 3 - next.innings : 2;
+        setActiveInnings(nextInnings);
       }
 
       if (!next.isOverride && !next.inningsTransition && next.legalBalls > 0 && next.legalBalls % 6 === 0 && simQueueRef.current.length > 0) {
@@ -336,6 +340,7 @@ export default function SimulationPage() {
           : selectedBall.commentary || "",
         isSimulated: true,
         isOverride: true,
+        innings: inningsNum,
       };
       
       score = overrideBall.score;
@@ -343,6 +348,7 @@ export default function SimulationPage() {
       legalBalls = overrideBall.legalBalls;
 
       const queue = [overrideBall];
+      let currentInningsForSim = inningsNum;
 
       // Build from backend ball log
       for (const entry of (data.ballLog || [])) {
@@ -352,7 +358,8 @@ export default function SimulationPage() {
             inningsTransition: true,
             message: entry.message,
             score: entry.score,
-            wickets: entry.wickets
+            wickets: entry.wickets,
+            innings: currentInningsForSim,
           });
           score = 0;
           wickets = 0;
@@ -362,6 +369,7 @@ export default function SimulationPage() {
           const tempTeam = currentBattingTeam;
           currentBattingTeam = currentBowlingTeam;
           currentBowlingTeam = tempTeam;
+          currentInningsForSim = 3 - currentInningsForSim;
           continue;
         }
 
@@ -405,6 +413,7 @@ export default function SimulationPage() {
           commentary: entry.commentary || randomCommentary(outcome, entry.striker, entry.bowler),
           isSimulated: true,
           isOverride: false,
+          innings: currentInningsForSim,
         });
       }
 
@@ -429,6 +438,312 @@ export default function SimulationPage() {
     setWinnerDeclared(null);
     setOutcomeOverride(null);
   };
+
+  const alternateBalls = useMemo(() => {
+    if (!innings || !innings[String(activeInnings)]) return [];
+    const origBalls = innings[String(activeInnings)].balls || [];
+    if (!simMode || simBalls.length === 0) return origBalls;
+
+    const simBallsForInnings = simBalls.filter(b => b.innings === activeInnings && !b.isOverBreak && !b.inningsTransition);
+
+    if (simBallsForInnings.length === 0) return origBalls;
+
+    const firstSimBall = simBallsForInnings[0];
+    const transitionedToThis = simBalls.some(b => b.inningsTransition && b.innings === (activeInnings === 2 ? 1 : 2));
+
+    if (transitionedToThis) {
+      return simBallsForInnings;
+    } else {
+      const prefix = origBalls.filter(b => b.over < firstSimBall.over || (b.over === firstSimBall.over && b.ball < firstSimBall.ball));
+      return [...prefix, ...simBallsForInnings];
+    }
+  }, [innings, activeInnings, simMode, simBalls]);
+
+  const getMatchStateBefore = (timelineBalls, targetIndex, battingXI, bowlingXI, currentStriker, currentNonStriker, currentBowler) => {
+    const batters = {};
+    battingXI.forEach(name => {
+      batters[name] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+    });
+    const bowlers = {};
+    bowlingXI.forEach(name => {
+      bowlers[name] = { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
+    });
+
+    let score = 0;
+    let wickets = 0;
+    let legalBalls = 0;
+
+    const targetBall = timelineBalls[targetIndex];
+    const striker = targetBall ? targetBall.striker : (currentStriker || battingXI[0] || "");
+    const non_striker = targetBall ? targetBall.non_striker : (currentNonStriker || battingXI[1] || "");
+    const current_bowler = targetBall ? targetBall.bowler : (currentBowler || bowlingXI[0] || "");
+
+    for (let i = 0; i < targetIndex; i++) {
+      const ball = timelineBalls[i];
+      if (ball.isOverBreak) continue;
+
+      const outcome = ball.outcome;
+      const isWicket = ball.isWicket;
+      const extraType = ball.extraType;
+      const bStriker = ball.striker;
+      const bBowler = ball.bowler;
+
+      if (!batters[bStriker]) {
+        batters[bStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+      }
+      if (!bowlers[bBowler]) {
+        bowlers[bBowler] = { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
+      }
+
+      const isLegal = extraType !== 'wide' && extraType !== 'nb';
+      const runsThisBall = (extraType === 'wide' || extraType === 'nb') ? 1 : isWicket ? 0 : parseInt(outcome) || 0;
+
+      score += runsThisBall;
+      if (isWicket) {
+        wickets++;
+        batters[bStriker].out = true;
+      }
+      if (isLegal) {
+        legalBalls++;
+        bowlers[bBowler].balls_bowled++;
+      }
+
+      if (isLegal || isWicket) {
+        batters[bStriker].balls++;
+      }
+      if (outcome !== 'wide' && outcome !== 'nb' && !isWicket) {
+        const rNum = parseInt(outcome) || 0;
+        batters[bStriker].runs += rNum;
+        if (rNum === 4) batters[bStriker].fours++;
+        if (rNum === 6) batters[bStriker].sixes++;
+      }
+
+      if (isWicket) {
+        bowlers[bBowler].wickets++;
+      }
+      if (extraType === 'wide' || extraType === 'nb') {
+        bowlers[bBowler].runs_conceded += 1;
+      } else if (!isWicket) {
+        bowlers[bBowler].runs_conceded += (parseInt(outcome) || 0);
+      }
+    }
+
+    const battedOrCrease = new Set([striker, non_striker]);
+    for (let i = 0; i < targetIndex; i++) {
+      const ball = timelineBalls[i];
+      if (ball.striker) battedOrCrease.add(ball.striker);
+      if (ball.non_striker) battedOrCrease.add(ball.non_striker);
+    }
+    const batting_lineup = battingXI.filter(p => !battedOrCrease.has(p));
+
+    return {
+      score,
+      wickets,
+      legal_balls_bowled: legalBalls,
+      striker,
+      non_striker,
+      current_bowler,
+      initialBatters: batters,
+      initialBowlers: bowlers,
+      batting_lineup
+    };
+  };
+
+  const handleBranchSimulate = useCallback(async (targetBallIndex, outcome, currentStriker, currentNonStriker, currentBowler) => {
+    stopSim();
+    setWinnerDeclared(null);
+
+    const inningsNum = activeInnings;
+    const battingTeamName = innings[String(inningsNum)]?.battingTeam || "";
+    const battingXI = rosters.team1.name === battingTeamName ? rosters.team1.players : rosters.team2.players;
+    const bowlingXI = rosters.team1.name === battingTeamName ? rosters.team2.players : rosters.team1.players;
+
+    const stateBefore = getMatchStateBefore(alternateBalls, targetBallIndex, battingXI, bowlingXI, currentStriker, currentNonStriker, currentBowler);
+    
+    let targetBall = alternateBalls[targetBallIndex];
+    if (targetBallIndex === alternateBalls.length) {
+      targetBall = {
+        over: Math.floor(stateBefore.legal_balls_bowled / 6),
+        ball: (stateBefore.legal_balls_bowled % 6) + 1,
+        striker: stateBefore.striker,
+        non_striker: stateBefore.non_striker,
+        bowler: stateBefore.current_bowler
+      };
+    }
+
+    const runsOverride = outcome === "W" ? 0
+      : outcome === "wide" ? 1
+        : outcome === "nb" ? 1
+          : outcome !== null ? parseInt(outcome) : null;
+
+    let currentTarget = null;
+    if (inningsNum === 2) {
+      const bWithTarget = alternateBalls.find(b => b.target !== undefined && b.target !== null);
+      currentTarget = bWithTarget ? bWithTarget.target : (innings["1"]?.totalScore + 1 || null);
+    }
+
+    try {
+      const res = await fetch(`${API}/api/match/${matchId}/simulate-from`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          match_id: matchId,
+          innings: inningsNum,
+          over: targetBall.over,
+          ball_no: targetBall.ball,
+          new_runs: runsOverride,
+          force_wicket: outcome === "W",
+          new_striker: null,
+          new_bowler: null,
+          outcome_override: outcome,
+          custom_state: {
+            score: stateBefore.score,
+            wickets: stateBefore.wickets,
+            legal_balls_bowled: stateBefore.legal_balls_bowled,
+            striker: stateBefore.striker,
+            non_striker: stateBefore.non_striker,
+            current_bowler: stateBefore.current_bowler,
+            // Pass empty dicts so the backend returns empty initialBatters/Bowlers.
+            // liveStats will recompute all stats from scratch via simBalls, which
+            // correctly handles the innings transition clear internally.
+            initialBatters: {},
+            initialBowlers: {},
+            batting_lineup: stateBefore.batting_lineup,
+            target: currentTarget
+          }
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Simulation Error");
+
+      setSimResult(data);
+      setSimMode(true);
+
+      let prefixBalls = [];
+      if (targetBallIndex === alternateBalls.length) {
+        prefixBalls = [...simBalls];
+      } else {
+        const matchIdx = simBalls.findIndex(b => !b.isOverBreak && b.innings === inningsNum && b.over === targetBall.over && b.ball === targetBall.ball);
+        if (matchIdx !== -1) {
+          prefixBalls = simBalls.slice(0, matchIdx);
+        }
+      }
+
+      let target = inningsNum === 2 ? currentTarget : null;
+      let score = data.startScore;
+      let wickets = data.startWickets;
+      let legalBalls = data.startBalls;
+      let currentBattingTeam = battingTeamName;
+      let currentBowlingTeam = innings[String(inningsNum)]?.bowlingTeam || "";
+
+      const isOvWide = outcome === "wide";
+      const isOvNb = outcome === "nb";
+
+      const overrideBall = {
+        over: targetBall.over,
+        ball: targetBall.ball,
+        outcome: outcome,
+        runs: runsOverride ?? targetBall.totalRuns,
+        isWicket: outcome === "W",
+        extraType: isOvWide ? "wide" : isOvNb ? "nb" : null,
+        totalRuns: runsOverride ?? targetBall.totalRuns,
+        score: data.startScore,
+        wickets: data.startWickets,
+        legalBalls: data.startBalls,
+        target,
+        striker: currentStriker || targetBall.striker,
+        non_striker: targetBall.non_striker || "",
+        bowler: currentBowler || targetBall.bowler,
+        battingTeam: currentBattingTeam,
+        bowlingTeam: currentBowlingTeam,
+        commentary: outcome
+          ? randomCommentary(outcome === "W" ? "W" : String(runsOverride ?? 0), currentStriker || targetBall.striker, currentBowler || targetBall.bowler)
+          : targetBall.commentary || "",
+        isSimulated: true,
+        isOverride: true,
+        innings: inningsNum,
+      };
+
+      const queue = [overrideBall];
+      let currentInningsForSim = inningsNum;
+
+      for (const entry of (data.ballLog || [])) {
+        if (entry.inningsTransition) {
+          queue.push({
+            isOverBreak: true,
+            inningsTransition: true,
+            message: entry.message,
+            score: entry.score,
+            wickets: entry.wickets,
+            innings: currentInningsForSim,
+          });
+          score = 0;
+          wickets = 0;
+          legalBalls = 0;
+          target = data.newTarget;
+          
+          const tempTeam = currentBattingTeam;
+          currentBattingTeam = currentBowlingTeam;
+          currentBowlingTeam = tempTeam;
+          currentInningsForSim = 3 - currentInningsForSim;
+          continue;
+        }
+
+        if (target && score >= target) break;
+        if (wickets >= 10 || legalBalls >= 120) {
+          if (target) break;
+          if (!data.newTarget) break;
+        }
+
+        const outcomeVal = entry.outcome;
+        const isWicket = outcomeVal === "W";
+        const isWide = outcomeVal === "wide";
+        const isNB = outcomeVal === "no_ball";
+        const isLegal = !isWide && !isNB;
+        const runsThisBall = isWide || isNB ? 1 : isWicket ? 0 : parseInt(outcomeVal) || 0;
+
+        score += runsThisBall;
+        if (isWicket) wickets++;
+        if (isLegal) legalBalls++;
+
+        let overNum = Math.floor((legalBalls - 1) / 6);
+        const ballInOver = ((legalBalls - 1) % 6) + 1;
+        
+        queue.push({
+          over: isLegal ? overNum : Math.floor(legalBalls / 6),
+          ball: isLegal ? ballInOver : (legalBalls % 6) + 1,
+          outcome: outcomeVal,
+          runs: runsThisBall,
+          isWicket,
+          extraType: isWide ? "wide" : isNB ? "nb" : null,
+          totalRuns: runsThisBall,
+          score,
+          wickets,
+          legalBalls,
+          target,
+          striker: entry.striker || "The Batter",
+          non_striker: entry.non_striker || "",
+          bowler: entry.bowler || "The Bowler",
+          battingTeam: currentBattingTeam,
+          bowlingTeam: currentBowlingTeam,
+          commentary: entry.commentary || randomCommentary(outcomeVal, entry.striker, entry.bowler),
+          isSimulated: true,
+          isOverride: false,
+          innings: currentInningsForSim,
+        });
+      }
+
+      setSimBalls(prefixBalls);
+      simQueueRef.current = queue;
+      simStateRef.current = null;
+      startSimTick();
+    } catch (err) {
+      console.error("Simulation error:", err);
+      setError("Simulation failed: " + err.message);
+    }
+  }, [alternateBalls, activeInnings, innings, rosters, matchId, simBalls, startSimTick, stopSim]);
+
 
   // ── Render helpers ────────────────────────────────────────
   if (loading) return (
@@ -469,7 +784,7 @@ export default function SimulationPage() {
     }
     return map;
   }
-  const ballsByOver = groupByOver(currentInnings?.balls || []);
+  const ballsByOver = groupByOver(alternateBalls);
   const overNums = Object.keys(ballsByOver).map(Number).sort((a, b) => a - b);
 
   // Calculate run rate
@@ -559,7 +874,7 @@ export default function SimulationPage() {
           simResult={simResult}
           simBalls={simBalls}
           simRunning={simRunning}
-          target={activeInnings === 2 ? (innings["1"]?.totalScore + 1) : null}
+          target={activeInnings === 2 ? (alternateBalls.find(b => b.target !== undefined && b.target !== null)?.target ?? (innings["1"]?.totalScore + 1)) : null}
           winnerDeclared={winnerDeclared}
           handlePause={handlePause}
           handleResume={handleResume}
@@ -567,6 +882,11 @@ export default function SimulationPage() {
           simSpeed={simSpeed}
           setSpeed={setSpeed}
           teamColor={teamColor}
+          alternateBalls={alternateBalls}
+          rosters={rosters}
+          activeInnings={activeInnings}
+          innings={innings}
+          handleBranchSimulate={handleBranchSimulate}
         />
       ) : (
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 flex flex-col lg:flex-row gap-5">
@@ -948,5 +1268,18 @@ export default function SimulationPage() {
       </div>
       )}
     </div>
+  );
+}
+
+export default function SimulationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen grid-bg flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-[#00e5ff] border-t-transparent animate-spin" />
+        <p className="text-[#00e5ff] font-mono text-sm tracking-widest">LOADING...</p>
+      </div>
+    }>
+      <SimulationPageContent />
+    </Suspense>
   );
 }

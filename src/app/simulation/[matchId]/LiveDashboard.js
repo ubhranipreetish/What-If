@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 
 const LiveDashboard = ({
   simResult,
@@ -11,7 +11,12 @@ const LiveDashboard = ({
   handleChangeBall,
   simSpeed,
   setSpeed,
-  teamColor
+  teamColor,
+  alternateBalls,
+  rosters,
+  activeInnings,
+  innings,
+  handleBranchSimulate
 }) => {
   const feedRef = useRef(null);
 
@@ -39,9 +44,13 @@ const LiveDashboard = ({
     simBalls.forEach(ball => {
       if (ball.isOverBreak) {
         if (ball.inningsTransition) {
-          // Clear batters and bowlers for the 2nd innings
+          // Clear batters, bowlers and current player refs for the new innings.
+          // They will be repopulated as the first 2nd-innings ball is processed.
           for (const key in batters) delete batters[key];
           for (const key in bowlers) delete bowlers[key];
+          currentStriker = "";
+          currentNonStriker = "";
+          currentBowler = "";
         } else {
           // Switch strike at end of over
           const temp = currentStriker;
@@ -50,7 +59,7 @@ const LiveDashboard = ({
         }
 
         // Over break message contains next bowler name in our page.js
-        const match = ball.message.match(/Next bowler: (.+)/);
+        const match = ball.message?.match(/Next bowler: (.+)/);
         if (match) {
           currentBowler = match[1];
           if (!bowlers[currentBowler]) bowlers[currentBowler] = { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
@@ -145,6 +154,22 @@ const LiveDashboard = ({
     return { bg: "transparent", text: "#e2e8f0", border: "#334155" };
   };
 
+  const [selectedBallIdx, setSelectedBallIdx] = useState(null);
+  const [outcomeOverride, setOutcomeOverride] = useState(null);
+
+  const ballsByOver = useMemo(() => {
+    const map = {};
+    if (!alternateBalls) return map;
+    for (let i = 0; i < alternateBalls.length; i++) {
+      const b = { ...alternateBalls[i], globalIdx: i };
+      if (!map[b.over]) map[b.over] = [];
+      map[b.over].push(b);
+    }
+    return map;
+  }, [alternateBalls]);
+
+  const overNums = useMemo(() => Object.keys(ballsByOver).map(Number).sort((a, b) => a - b), [ballsByOver]);
+
   return (
     <div className="w-full h-[calc(100vh-64px)] flex flex-col bg-[#02050c] overflow-hidden">
 
@@ -235,6 +260,75 @@ const LiveDashboard = ({
         </div>
       </div>
 
+      {/* ── Alter Current Ball Outcome (Only shown when paused) ── */}
+      {!simRunning && simBalls.length > 0 && !winnerDeclared && (
+        <div className="px-3 md:px-6 py-3 border-b border-white/5 bg-[#050a18]/40 shrink-0 flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
+          <div className="text-left w-full md:w-auto">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#ff3b5c] animate-pulse shadow-[0_0_8px_#ff3b5c]" />
+              <span className="text-[10px] font-mono text-[#ff3b5c] uppercase tracking-widest font-black">Simulation Paused</span>
+            </div>
+            <h3 className="text-white text-sm font-black tracking-wide">
+              Alter Next Ball (Over {Math.floor(legalBalls / 6)}.{ (legalBalls % 6) + 1 })
+            </h3>
+            <p className="text-[11px] font-mono text-[#94a3b8] mt-0.5">
+              Striker: <span className="text-[#00ff88] font-bold">{liveStats.currentStriker}</span> • Bowler: <span className="text-[#ff3b5c] font-bold">{liveStats.currentBowler}</span>
+            </p>
+          </div>
+
+          {/* Outcome buttons */}
+          <div className="flex flex-wrap gap-1.5 items-center w-full md:w-auto justify-start md:justify-center">
+            <span className="text-[9px] font-mono text-[#6b7280] mr-2 uppercase tracking-wider font-bold">Select Outcome:</span>
+            {[
+              { label: "•", val: "0", color: "#6b7280", desc: "Dot" },
+              { label: "1", val: "1", color: "#00ff88", desc: "1 Run" },
+              { label: "2", val: "2", color: "#00ff88", desc: "2 Runs" },
+              { label: "3", val: "3", color: "#00ff88", desc: "3 Runs" },
+              { label: "4", val: "4", color: "#00e5ff", desc: "Four" },
+              { label: "6", val: "6", color: "#ffd700", desc: "Six" },
+              { label: "W", val: "W", color: "#ff3b5c", desc: "Out" },
+              { label: "Wd", val: "wide", color: "#a855f7", desc: "Wide" },
+              { label: "NB", val: "nb", color: "#a855f7", desc: "No Ball" }
+            ].map(({ label, val, color, desc }) => (
+              <button
+                key={val}
+                onClick={() => setOutcomeOverride(val)}
+                className={`px-3 py-1.5 rounded text-[10px] font-black transition-all flex flex-col items-center justify-center min-w-[32px] ${outcomeOverride === val ? "scale-105" : "opacity-70 hover:opacity-100"}`}
+                style={{
+                  background: outcomeOverride === val ? color + "25" : "rgba(255,255,255,0.03)",
+                  border: `1.5px solid ${outcomeOverride === val ? color : "rgba(255,255,255,0.08)"}`,
+                  color: outcomeOverride === val ? color : "#94a3b8"
+                }}
+                title={desc}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 w-full md:w-auto justify-end">
+            {outcomeOverride ? (
+              <button
+                onClick={() => {
+                  handleBranchSimulate(alternateBalls.length, outcomeOverride, liveStats.currentStriker, liveStats.currentNonStriker, liveStats.currentBowler);
+                  setOutcomeOverride(null);
+                }}
+                className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#ff3b5c] to-[#a855f7] text-white text-[10px] font-black tracking-widest uppercase hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_15px_rgba(255,59,92,0.35)]"
+              >
+                Simulate Override ⚡
+              </button>
+            ) : (
+              <button
+                onClick={handleResume}
+                className="px-5 py-2.5 rounded-lg bg-[#00ff88]/15 border border-[#00ff88]/40 text-[#00ff88] text-[10px] font-black tracking-widest uppercase hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Resume Normal ▶
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Main Content Area (Commentary & Scorecard) ── */}
       <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row px-3 md:px-6 gap-6 md:gap-6 pb-28 md:pb-24 mt-2 md:mt-4 custom-scrollbar">
 
@@ -246,7 +340,7 @@ const LiveDashboard = ({
           </div>
 
           <div ref={feedRef} className="flex-1 overflow-y-auto p-3 md:p-5 space-y-2 md:space-y-3 scroll-smooth custom-scrollbar">
-            {[...simBalls].reverse().map((ball, i) => {
+            {[...alternateBalls].reverse().map((ball, i) => {
               if (ball.isOverBreak) {
                 return (
                   <div key={i} className="py-1.5 px-3 md:px-4 my-2 md:my-4 rounded-lg bg-gradient-to-r from-white/5 to-transparent border-l-2 border-white/20">
@@ -257,9 +351,10 @@ const LiveDashboard = ({
 
               const style = ballStyle(ball, true);
               const isMajor = ball.outcome === "4" || ball.outcome === "6" || ball.outcome === "W";
+              const commentary = ball.commentary || `${ball.bowler} to ${ball.striker}, ${ball.isWicket ? 'OUT!' : ball.extraType ? ball.extraType : ball.runs + ' runs'}`;
 
               return (
-                <div key={i} className={`flex items-start gap-2 md:gap-3 p-2 md:p-3 rounded-lg md:rounded-xl transition-all ${ball.isOverride ? 'bg-[#a855f7]/10 border border-[#a855f7]/30' : 'bg-black/20 hover:bg-black/40'}`}>
+                <div key={i} className={`flex items-start gap-2 md:gap-3 p-2 md:p-3 rounded-lg md:rounded-xl transition-all ${ball.isOverride ? 'bg-[#a855f7]/10 border border-[#a855f7]/30' : ball.isSimulated ? 'bg-black/20 hover:bg-black/40' : 'bg-white/5 hover:bg-white/10'}`}>
                   <div className={`w-7 h-7 md:w-9 md:h-9 rounded flex items-center justify-center text-[9px] md:text-xs font-black shrink-0 ${isMajor ? 'ring-1 ring-offset-1 ring-offset-[#080d1e]' : ''}`}
                     style={{ background: style.bg, border: `1px solid ${style.border}`, color: style.text }}>
                     {ball.isWicket ? "W" : ball.extraType === "wide" ? "Wd" : ball.extraType === "nb" ? "NB" : String(ball.runs)}
@@ -269,7 +364,7 @@ const LiveDashboard = ({
                       <span className="text-[8px] md:text-[10px] font-mono text-[#94a3b8]">Ov {ball.over}.{ball.ball}</span>
                       <span className="text-[9px] md:text-[10px] font-mono text-white font-bold">{ball.score}/{ball.wickets}</span>
                     </div>
-                    <p className={`text-[11px] md:text-sm leading-snug ${isMajor ? 'text-white font-medium' : 'text-[#c4cad6]'}`}>{ball.commentary}</p>
+                    <p className={`text-[11px] md:text-sm leading-snug ${isMajor ? 'text-white font-medium' : 'text-[#c4cad6]'}`}>{commentary}</p>
                   </div>
                 </div>
               );
@@ -405,7 +500,7 @@ const LiveDashboard = ({
       )}
 
       {/* ── Innings Transition Overlay ── */}
-      {isTransitioning && !winnerDeclared && (
+      {isTransitioning && activeInnings === 1 && !winnerDeclared && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#02050c]/95 backdrop-blur-xl animate-in fade-in duration-500 p-6">
           <div className="flex flex-col items-center justify-center text-center max-w-md">
             <h2 className="text-[#a855f7] font-mono text-sm md:text-xl tracking-[0.3em] uppercase mb-4 md:mb-6 animate-pulse">

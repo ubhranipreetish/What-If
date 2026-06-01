@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function MatchHub() {
+function MatchHubContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -420,5 +420,17 @@ export default function MatchHub() {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function MatchHub() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#02050c] flex items-center justify-center">
+                <p className="text-[#00e5ff] font-mono tracking-widest">LOADING...</p>
+            </div>
+        }>
+            <MatchHubContent />
+        </Suspense>
     );
 }

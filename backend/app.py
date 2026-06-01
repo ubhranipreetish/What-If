@@ -80,6 +80,18 @@ def startup_event():
 # ---------------------------------------------------------
 # API MODELS
 # ---------------------------------------------------------
+class CustomState(BaseModel):
+    score: int
+    wickets: int
+    legal_balls_bowled: int
+    striker: str
+    non_striker: str
+    current_bowler: str
+    initialBatters: Optional[dict] = None
+    initialBowlers: Optional[dict] = None
+    batting_lineup: Optional[List[str]] = None
+    target: Optional[int] = None
+
 class ModificationRequest(BaseModel):
     match_id: str
     innings: int
@@ -91,6 +103,8 @@ class ModificationRequest(BaseModel):
     new_bowler: Optional[str] = None
     outcome_override: Optional[str] = None
     temperature: Optional[float] = 0.7
+    custom_state: Optional[CustomState] = None
+
 
 class PlayerPayload(BaseModel):
     id: str
@@ -668,26 +682,63 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
         raise HTTPException(status_code=503, detail="Simulator not initialized")
 
     try:
-        # 1. Get initial state from historical data
-        state = get_match_state(
-            df_clean, match_id, request.innings, request.over, request.ball_no
-        )
-        
-        # map state keys to what simulator expects
-        state['score'] = state.pop('current_score')
-        state['wickets'] = state.pop('current_wickets')
-        state['current_bowler'] = state['bowler']
+        # 1. Get initial state
+        if request.custom_state:
+            state = {
+                "match_id": match_id,
+                "innings": request.innings,
+                "score": request.custom_state.score,
+                "wickets": request.custom_state.wickets,
+                "legal_balls_bowled": request.custom_state.legal_balls_bowled,
+                "balls_remaining": 120 - request.custom_state.legal_balls_bowled,
+                "striker": request.custom_state.striker,
+                "non_striker": request.custom_state.non_striker,
+                "current_bowler": request.custom_state.current_bowler,
+                "initialBatters": request.custom_state.initialBatters or {},
+                "initialBowlers": request.custom_state.initialBowlers or {},
+                "over": request.over,
+                "ball_no": request.ball_no
+            }
+            # Add target
+            if request.innings == 2:
+                if request.custom_state.target is not None:
+                    target_val = request.custom_state.target
+                else:
+                    first_inn = df_clean[(df_clean['match_id'] == match_id) & (df_clean['innings'] == 1)]
+                    target_val = int(first_inn['cumulative_score'].max()) + 1 if not first_inn.empty else 150
+                state['target'] = target_val
+                state['runs_required'] = max(0, target_val - state['score'])
+            else:
+                state['target'] = None
 
-        # 2. Apply modifications to the first ball if provided
-        if request.new_striker: state['striker'] = request.new_striker
-        if request.new_bowler: state['current_bowler'] = request.new_bowler
-        
-        # Ensure non_striker is present in state
-        if 'non_striker' not in state:
-            state['non_striker'] = "" # Fallback
-        
-        # 3. Build context for simulation
-        lineup = generate_remaining_batting_lineup(raw_df, match_df, state)
+            # Phase
+            state['phase'] = 'powerplay' if request.over <= 5 else 'middle' if request.over <= 14 else 'death'
+
+            # Batting lineup
+            if request.custom_state.batting_lineup is not None:
+                lineup = request.custom_state.batting_lineup
+            else:
+                lineup = generate_remaining_batting_lineup(raw_df, match_df, state)
+        else:
+            state = get_match_state(
+                df_clean, match_id, request.innings, request.over, request.ball_no
+            )
+            # map state keys to what simulator expects
+            state['score'] = state.pop('current_score')
+            state['wickets'] = state.pop('current_wickets')
+            state['current_bowler'] = state['bowler']
+
+            # 2. Apply modifications to the first ball if provided
+            if request.new_striker: state['striker'] = request.new_striker
+            if request.new_bowler: state['current_bowler'] = request.new_bowler
+            
+            # Ensure non_striker is present in state
+            if 'non_striker' not in state:
+                state['non_striker'] = "" # Fallback
+            
+            # 3. Build context for simulation
+            lineup = generate_remaining_batting_lineup(raw_df, match_df, state)
+
         
         # Build bowling plan historically, preventing consecutive overs
         innings_df = df_clean[
