@@ -168,7 +168,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                     <div className="p-3 border-b border-white/5 bg-[#050a18]/40">
                         <input
                             type="text"
-                            placeholder="🔍 Search legends..."
+                            placeholder="🔍 Search players..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white mb-2 focus:outline-none focus:border-[#a855f7]"

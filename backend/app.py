@@ -109,6 +109,7 @@ class ModificationRequest(BaseModel):
 class PlayerPayload(BaseModel):
     id: str
     name: str
+    simName: Optional[str] = None
     role: str
     style: Optional[str] = ""
     avgSR: Optional[float] = 0.0
@@ -208,10 +209,10 @@ def simulate_arena_full(req: ArenaFullRequest):
         raise HTTPException(status_code=503, detail="Simulator Engine Offline")
         
     try:
-        t1_bat = [p.name for p in req.t1Roster]
-        t2_bat = [p.name for p in req.t2Roster]
-        t1_bowl = [p.name for p in req.t1BowlingOrder] * 4  # Expand to cover 20 overs
-        t2_bowl = [p.name for p in req.t2BowlingOrder] * 4
+        t1_bat = [(p.simName if p.simName else p.name) for p in req.t1Roster]
+        t2_bat = [(p.simName if p.simName else p.name) for p in req.t2Roster]
+        t1_bowl = [(p.simName if p.simName else p.name) for p in req.t1BowlingOrder] * 4  # Expand to cover 20 overs
+        t2_bowl = [(p.simName if p.simName else p.name) for p in req.t2BowlingOrder] * 4
         
         # Determine who bats first
         t1_bats_first = (req.tossWinner == 1 and req.tossDecision == 'bat') or (req.tossWinner == 2 and req.tossDecision == 'bowl')
@@ -872,6 +873,189 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
         }
     except Exception as e:
         print(f"Simulation Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------
+# ARENA PLAYER POOL — All unique IPL players with computed stats
+# ---------------------------------------------------------
+
+# Known wicket-keepers (hard to infer purely from ball-by-ball)
+_KNOWN_WK = {
+    "MS Dhoni", "AB de Villiers", "Adam Gilchrist", "Rishabh Pant", "Jos Buttler",
+    "Quinton de Kock", "Heinrich Klaasen", "Kumar Sangakkara", "Jonny Bairstow",
+    "Sanju Samson", "Nicholas Pooran", "KL Rahul", "Robin Uthappa",
+    "Dinesh Karthik", "Wriddhiman Saha", "Parthiv Patel", "Brendon McCullum",
+    "Naman Ojha", "Matthew Wade", "Ishan Kishan", "Prithvi Shaw", "Phil Salt",
+    "Kusal Mendis", "Litton Das", "Rahul Tripathi", "Tim Paine"
+}
+
+_ARENA_PLAYER_CACHE = None
+
+def _build_arena_player_pool():
+    global _ARENA_PLAYER_CACHE
+    if _ARENA_PLAYER_CACHE is not None:
+        return _ARENA_PLAYER_CACHE
+
+    if raw_df is None:
+        return []
+
+    df = raw_df.copy()
+
+    # Fill nulls in extras columns
+    for col in ['wides', 'noballs', 'byes', 'legbyes']:
+        if col in df.columns:
+            df[col] = df[col].fillna(0)
+
+    # ── Batting stats ─────────────────────────────────────────
+    # Only legal deliveries for SR/avg (exclude wides)
+    df_bat = df[df.get('wides', pd.Series(0, index=df.index)) == 0].copy() if 'wides' in df.columns else df.copy()
+
+    bat_grp = df.groupby('striker')
+    bat_balls = bat_grp['runs_off_bat'].count().rename('balls_faced')
+    bat_runs  = bat_grp['runs_off_bat'].sum().rename('runs')
+    bat_matches = bat_grp['match_id'].nunique().rename('bat_matches')
+
+    if 'player_dismissed' in df.columns:
+        dismissals = df[df['player_dismissed'].notna()].groupby('striker').size().rename('dismissals')
+    else:
+        dismissals = pd.Series(dtype=int)
+
+    batting = pd.concat([bat_balls, bat_runs, bat_matches], axis=1).reset_index()
+    batting = batting.merge(dismissals.reset_index().rename(columns={'striker': 'striker', 0: 'dismissals'}), on='striker', how='left')
+    if 'dismissals' not in batting.columns:
+        batting['dismissals'] = 0
+    batting['dismissals'] = batting['dismissals'].fillna(0)
+    batting['avg_sr'] = ((batting['runs'] / batting['balls_faced'].replace(0, 1)) * 100).round(1)
+    batting['avg']    = (batting['runs'] / batting['dismissals'].replace(0, 1)).round(1)
+
+    # ── Bowling stats ─────────────────────────────────────────
+    bowl_grp = df.groupby('bowler')
+    bowl_balls   = bowl_grp['runs_off_bat'].count().rename('balls_bowled')
+    bowl_runs    = (bowl_grp['runs_off_bat'].sum() + bowl_grp.get_group if False else bowl_grp['runs_off_bat'].sum()).rename('runs_conceded')
+    bowl_matches = bowl_grp['match_id'].nunique().rename('bowl_matches')
+
+    # Include extras in runs conceded
+    if 'extras' in df.columns:
+        extras_by_bowler = df.groupby('bowler')['extras'].sum()
+        bowl_runs = (df.groupby('bowler')['runs_off_bat'].sum() + extras_by_bowler).rename('runs_conceded')
+
+    if 'player_dismissed' in df.columns:
+        wickets = df[df['player_dismissed'].notna()].groupby('bowler').size().rename('wickets')
+    else:
+        wickets = pd.Series(dtype=int)
+
+    bowling = pd.concat([bowl_balls, bowl_runs, bowl_matches], axis=1).reset_index()
+    bowling = bowling.merge(wickets.reset_index().rename(columns={'bowler': 'bowler', 0: 'wickets'}), on='bowler', how='left')
+    if 'wickets' not in bowling.columns:
+        bowling['wickets'] = 0
+    bowling['wickets'] = bowling['wickets'].fillna(0)
+    bowling['economy'] = ((bowling['runs_conceded'] / (bowling['balls_bowled'] / 6).replace(0, 1))).round(2)
+    bowling['wpm']     = (bowling['wickets'] / bowling['bowl_matches'].replace(0, 1)).round(2)
+
+    # ── Merge and classify ────────────────────────────────────
+    bat = batting.rename(columns={'striker': 'name'})
+    bowl = bowling.rename(columns={'bowler': 'name'})
+
+    merged = pd.merge(bat, bowl, on='name', how='outer').fillna(0)
+
+    def classify(row):
+        b_balls = row.get('balls_faced', 0)
+        bwl_balls = row.get('balls_bowled', 0)
+        name = row['name']
+        if name in _KNOWN_WK:
+            return 'wk'
+        # Significant bowler: bowled 120+ balls (20 overs) AND bats little
+        if bwl_balls >= 120 and b_balls <= 120:
+            return 'bowler'
+        # Significant batter: faced 60+ balls and barely bowled
+        if b_balls >= 60 and bwl_balls < 60:
+            return 'batter'
+        # All-rounder: meaningful contribution in both
+        if bwl_balls >= 60 and b_balls >= 60:
+            return 'allrounder'
+        # Default by dominance
+        return 'bowler' if bwl_balls > b_balls else 'batter'
+
+    def make_role_label(t):
+        return {'batter': 'Batter', 'wk': 'WK-Batter', 'allrounder': 'All-Rounder', 'bowler': 'Bowler'}.get(t, 'Batter')
+
+    def calc_cost(row, ptype):
+        """Simple cost 1-10 based on performance metrics."""
+        if ptype in ('batter', 'wk'):
+            sr = row.get('avg_sr', 0)
+            avg = row.get('avg', 0)
+            score = min(10, max(1, round((sr / 20) * 0.6 + (avg / 10) * 0.4)))
+        elif ptype == 'bowler':
+            econ = row.get('economy', 10)
+            wpm = row.get('wpm', 0)
+            score = min(10, max(1, round(((10 - min(econ, 12)) / 2) + wpm * 1.5)))
+        else:  # allrounder
+            sr = row.get('avg_sr', 0)
+            econ = row.get('economy', 10)
+            wpm = row.get('wpm', 0)
+            score = min(10, max(1, round((sr / 30) + ((10 - min(econ, 12)) / 3) + wpm)))
+        return int(score)
+
+    TEAM_COLOR_MAP = {
+        "Chennai": "#FCCA06", "Mumbai": "#004BA0", "Royal": "#D4213D",
+        "Kolkata": "#3A225D", "Gujarat": "#1B2133", "Rajasthan": "#EB1B99",
+        "Sunrisers": "#FF822A", "Hyderabad": "#FF822A", "Deccan": "#FF822A",
+        "Punjab": "#D71920", "Delhi": "#0078BC", "Pune": "#9C27B0",
+        "Lucknow": "#4FC3F7", "Kochi": "#E05C00",
+    }
+
+    # Get last team for each player (most recent match)
+    if 'batting_team' in df.columns:
+        last_team_bat = df.sort_values('match_id').groupby('striker')['batting_team'].last()
+        last_team_bowl = df.sort_values('match_id').groupby('bowler')['batting_team'].last()
+    else:
+        last_team_bat = pd.Series(dtype=str)
+        last_team_bowl = pd.Series(dtype=str)
+
+    def get_color(name):
+        team = last_team_bat.get(name) or last_team_bowl.get(name) or ""
+        for kw, color in TEAM_COLOR_MAP.items():
+            if kw.lower() in str(team).lower():
+                return color
+        return "#6b7280"
+
+    players = []
+    for idx, row in merged.iterrows():
+        name = row['name']
+        if not name or str(name) == 'nan' or len(str(name).strip()) < 2:
+            continue
+        ptype = classify(row)
+        cost = calc_cost(row, ptype)
+        players.append({
+            "id": f"p_{str(name).lower().replace(' ', '_').replace('.', '')}",
+            "name": str(name),
+            "role": make_role_label(ptype),
+            "type": ptype,
+            "avgSR": float(row.get('avg_sr', 120.0)),
+            "avg": float(row.get('avg', 20.0)),
+            "economy": float(row.get('economy', 8.0)),
+            "wicketsPerMatch": float(row.get('wpm', 0.5)),
+            "cost": cost,
+            "imgColor": get_color(name),
+        })
+
+    # Sort: most impactful players first
+    players.sort(key=lambda p: -p['cost'])
+
+    _ARENA_PLAYER_CACHE = players
+    return players
+
+
+@app.get("/api/arena/players")
+def get_arena_players():
+    """Return all unique IPL players with computed stats for the Arena draft."""
+    if raw_df is None:
+        raise HTTPException(status_code=503, detail="Dataset not loaded")
+    try:
+        return {"players": _build_arena_player_pool()}
+    except Exception as e:
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -16,7 +16,8 @@ const LiveDashboard = ({
   rosters,
   activeInnings,
   innings,
-  handleBranchSimulate
+  handleBranchSimulate,
+  isArena
 }) => {
   const feedRef = useRef(null);
 
@@ -260,8 +261,8 @@ const LiveDashboard = ({
         </div>
       </div>
 
-      {/* ── Alter Current Ball Outcome (Only shown when paused) ── */}
-      {!simRunning && simBalls.length > 0 && !winnerDeclared && (
+      {/* ── Alter Current Ball Outcome (Only shown when paused, not in Arena) ── */}
+      {!isArena && !simRunning && simBalls.length > 0 && !winnerDeclared && (
         <div className="px-3 md:px-6 py-3 border-b border-white/5 bg-[#050a18]/40 shrink-0 flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
           <div className="text-left w-full md:w-auto">
             <div className="flex items-center gap-2 mb-1">

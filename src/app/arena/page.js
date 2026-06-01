@@ -21,6 +21,7 @@ export default function ArenaPage() {
     
     // Simulation playback state
     const [results, setResults] = useState(null);
+    const resultsRef = useRef(null);
     const [displayBalls, setDisplayBalls] = useState([]);
     const [simRunning, setSimRunning] = useState(false);
     const [winnerDeclared, setWinnerDeclared] = useState(null);
@@ -102,13 +103,14 @@ export default function ArenaPage() {
                     simRunningRef.current = false;
                     setSimRunning(false);
                     // Winner is determined from backend data, applied after playback
-                    if (results) {
+                    const currentResults = resultsRef.current;
+                    if (currentResults) {
                         setWinnerDeclared({
-                            team: results.winnerName,
-                            type: results.winnerType,
-                            target: results.targetScore,
-                            score: results.finalScore,
-                            wickets: results.finalWickets
+                            team: currentResults.winnerName,
+                            type: currentResults.winnerType,
+                            target: currentResults.targetScore,
+                            score: currentResults.finalScore,
+                            wickets: currentResults.finalWickets
                         });
                     }
                 }, delay + 500);
@@ -118,7 +120,7 @@ export default function ArenaPage() {
         };
 
         simIntervalRef.current = setTimeout(tick, simSpeedRef.current);
-    }, [results]);
+    }, []);
 
     const handleLoadingComplete = useCallback(async () => {
         try {
@@ -143,6 +145,7 @@ export default function ArenaPage() {
 
             const matchData = await response.json();
             setResults(matchData);
+            resultsRef.current = matchData;
             
             // Queue up all balls for auto-play
             simQueueRef.current = [...matchData.ballLog];
@@ -169,6 +172,7 @@ export default function ArenaPage() {
         setT1Roster([]);
         setT2Roster([]);
         setResults(null);
+        resultsRef.current = null;
         setDisplayBalls([]);
         setWinnerDeclared(null);
         setPhase('setup');
@@ -267,15 +271,21 @@ export default function ArenaPage() {
                         <LiveDashboard
                             simResult={results}
                             simBalls={displayBalls}
+                            alternateBalls={displayBalls}
                             simRunning={simRunning}
                             target={results.targetScore}
                             winnerDeclared={winnerDeclared}
                             handlePause={handlePause}
                             handleResume={handleResume}
                             handleChangeBall={handleRestart}
+                            handleBranchSimulate={() => {}}
                             simSpeed={simSpeed}
                             setSpeed={setSpeed}
                             teamColor={teamColor}
+                            activeInnings={1}
+                            innings={1}
+                            rosters={{}}
+                            isArena={true}
                         />
                     </div>
                 </div>
