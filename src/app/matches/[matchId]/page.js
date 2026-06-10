@@ -1,28 +1,9 @@
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-
-const API = "http://localhost:8000";
-
-const TEAM_COLORS = {
-  "Mumbai Indians": "#004BA0", "Chennai Super Kings": "#FCCA06",
-  "Royal Challengers Bangalore": "#D4213D", "Kolkata Knight Riders": "#3A225D",
-  "Sunrisers Hyderabad": "#FF822A", "Delhi Capitals": "#0078BC",
-  "Rajasthan Royals": "#254AA5", "Punjab Kings": "#D71920",
-  "Gujarat Titans": "#1C4E7A", "Lucknow Super Giants": "#004BA0",
-  "Kings XI Punjab": "#D71920", "Deccan Chargers": "#FF822A",
-};
-function tc(name) {
-  for (const [k, v] of Object.entries(TEAM_COLORS)) {
-    if (name?.includes(k.split(" ")[0])) return v;
-  }
-  return "#00e5ff";
-}
-function ts(name) {
-  if (!name) return "??";
-  const p = name.trim().split(" ");
-  return p.length >= 3 ? (p[0][0] + p[1][0] + p[2][0]).toUpperCase() : name.slice(0, 3).toUpperCase();
-}
+import Link from "next/link";
+import { API_BASE as API } from "@/lib/api";
+import { teamColor as tc, teamShort as ts } from "@/lib/teams";
 
 export default function MatchDetailPage() {
   const { matchId } = useParams();
@@ -92,7 +73,7 @@ export default function MatchDetailPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#050a18]/90 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <a href="/" className="text-[#00e5ff] font-black text-lg tracking-tight hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] transition-all">◈ COUNTERPLAY</a>
+          <Link href="/" aria-label="CounterPlay home" className="text-[#00e5ff] font-black text-lg tracking-tight hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] transition-all">◈ COUNTERPLAY</Link>
           <div className="flex items-center gap-3">
             <span className="px-3 py-1 rounded-lg font-black text-xs text-white" style={{ background: team1Color + "33", border: `1px solid ${team1Color}55` }}>{ts(team1Name)}</span>
             <span className="text-[#6b7280] text-xs font-black italic">VS</span>
@@ -107,12 +88,12 @@ export default function MatchDetailPage() {
         <div className="glass rounded-2xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <div className="text-center">
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-sm text-white mb-1" style={{ background: team1Color }}>{ts(team1Name)}</div>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center font-black text-sm text-white mb-1" style={{ background: team1Color }}>{ts(team1Name)}</div>
               <p className="text-white font-black text-xl">{inn1?.totalScore ?? "—"}<span className="text-[#6b7280] text-sm">/{inn1?.totalWickets ?? "—"}</span></p>
             </div>
             <span className="text-[#6b7280] text-2xl font-black italic">vs</span>
             <div className="text-center">
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center font-black text-sm text-white mb-1" style={{ background: team2Color }}>{ts(team2Name)}</div>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center font-black text-sm text-white mb-1" style={{ background: team2Color }}>{ts(team2Name)}</div>
               <p className="text-white font-black text-xl">{inn2?.totalScore ?? "—"}<span className="text-[#6b7280] text-sm">/{inn2?.totalWickets ?? "—"}</span></p>
             </div>
           </div>

@@ -29,6 +29,9 @@
 
 html {
   color-scheme: dark;
+  /* Stop iOS from auto-inflating text on orientation change */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -36,6 +39,31 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   overflow-x: hidden;
+  /* Kill the grey tap flash on mobile; we provide our own active states */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Keyboard users get a clear, on-brand focus ring everywhere.
+   Pointer/touch interactions don't trigger :focus-visible, so this stays
+   invisible for mouse/touch users. */
+:focus-visible {
+  outline: 2px solid var(--color-accent-cyan);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respect users who ask for less motion — neutralises the float/glow/slide
+   keyframes and long transitions app-wide. */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Scrollbar */
@@ -287,4 +315,66 @@ body {
       transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Mobile-first helpers
+   ───────────────────────────────────────────────────────────── */
+
+/* Safe-area aware padding for notches / home indicators. Combine with normal
+   padding utilities, e.g. `className="pb-4 pb-safe"` to add the inset on top. */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* For fixed bottom bars: reserve the home-indicator inset *inside* the bar. */
+.inset-pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+
+/* Ensure interactive controls meet the 44px minimum touch target without
+   forcing their visual size up — handy on dense icon buttons. */
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Horizontal scroll rows (filter chips, etc.) — momentum scroll + snap, with
+   the scrollbar hidden for a clean look. */
+.scroll-row {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-row>* {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 export default function GlowButton({ children, onClick, href, className = "", size = "lg" }) {
     const sizeClasses = {
@@ -23,17 +24,17 @@ export default function GlowButton({ children, onClick, href, className = "", si
 
     if (href) {
         return (
-            <a href={href} className={baseClasses}>
+            <Link href={href} className={baseClasses}>
                 {children}
-                <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 transition-opacity hover:opacity-100" />
-            </a>
+                <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 transition-opacity hover:opacity-100 pointer-events-none" />
+            </Link>
         );
     }
 
     return (
         <button onClick={onClick} className={baseClasses}>
             {children}
-            <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 transition-opacity hover:opacity-100" />
+            <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 transition-opacity hover:opacity-100 pointer-events-none" />
         </button>
     );
 }

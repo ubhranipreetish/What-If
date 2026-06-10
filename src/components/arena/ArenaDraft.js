@@ -19,6 +19,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
     const [t2Roster, setT2Roster] = useState([]);
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState("all"); 
+    const [activeMobileTab, setActiveMobileTab] = useState('pool'); // 'pool' | 'p1' | 'p2'
 
     const activeTeamId = snakeOrder[currentPickIndex];
     const activePlayerName = activeTeamId === 1 ? p1 : p2;
@@ -108,7 +109,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
     const t2Counts = getCounts(t2Roster);
 
     const RosterStatus = ({ counts }) => (
-        <div className="flex justify-between items-center px-1 mt-2 text-[8px] font-mono uppercase text-[#94a3b8]">
+        <div className="flex justify-between items-center px-1 mt-2 text-[9px] md:text-[10px] font-mono uppercase text-[#94a3b8]">
             <span className={counts.batter >= 3 ? "text-[#00ff88]" : ""}>BAT: {counts.batter}/3</span>
             <span className={counts.wk >= 1 ? "text-[#00ff88]" : ""}>WK: {counts.wk}/1</span>
             <span className={counts.allrounder >= 1 ? "text-[#00ff88]" : ""}>AR: {counts.allrounder}/1</span>
@@ -117,7 +118,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
     );
 
     return (
-        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 md:py-6 flex flex-col min-h-screen lg:h-[calc(100vh-80px)]">
+        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 md:py-6 flex flex-col min-h-[100dvh] lg:h-[calc(100dvh-80px)]">
 
             {/* Draft Header */}
             <div className="text-center mb-4 shrink-0">
@@ -138,11 +139,47 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                 )}
             </div>
 
+            {/* Mobile Tab Selector */}
+            {!isDraftComplete && (
+                <div className="flex lg:hidden px-2 mb-4 shrink-0 gap-2">
+                    <button
+                        onClick={() => setActiveMobileTab('pool')}
+                        className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                            activeMobileTab === 'pool'
+                                ? 'bg-[#a855f7]/10 border-[#a855f7]/40 text-[#a855f7] shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+                                : 'bg-white/5 border-transparent text-[#94a3b8]'
+                        }`}
+                    >
+                        Draft Pool
+                    </button>
+                    <button
+                        onClick={() => setActiveMobileTab('p1')}
+                        className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                            activeMobileTab === 'p1'
+                                ? 'bg-[#00e5ff]/10 border-[#00e5ff]/40 text-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.1)]'
+                                : 'bg-white/5 border-transparent text-[#94a3b8]'
+                        }`}
+                    >
+                        {p1}'s XI
+                    </button>
+                    <button
+                        onClick={() => setActiveMobileTab('p2')}
+                        className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                            activeMobileTab === 'p2'
+                                ? 'bg-[#ff3b5c]/10 border-[#ff3b5c]/40 text-[#ff3b5c] shadow-[0_0_15px_rgba(255,59,92,0.1)]'
+                                : 'bg-white/5 border-transparent text-[#94a3b8]'
+                        }`}
+                    >
+                        {p2}'s XI
+                    </button>
+                </div>
+            )}
+
             {/* Split Screen Draft UI */}
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 overflow-y-auto lg:overflow-hidden pb-4 lg:pb-0">
 
                 {/* Team 1 Panel */}
-                <div className="glass rounded-2xl p-4 border border-white/5 flex flex-col relative min-h-[300px] lg:h-auto">
+                <div className={`glass rounded-2xl p-4 border border-white/5 flex flex-col relative min-h-[300px] lg:h-auto lg:flex ${activeMobileTab === 'p1' || isDraftComplete ? 'flex' : 'hidden'}`}>
                     <div className="absolute top-0 right-0 w-full h-[150px] bg-[radial-gradient(ellipse_at_top,#00e5ff10_0%,transparent_70%)] pointer-events-none" />
 
                     <h2 className="text-base md:text-lg font-black text-white drop-shadow-md truncate">{p1}'S XI</h2>
@@ -163,7 +200,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                 </div>
 
                 {/* Central Player Pool (Hides when draft complete) */}
-                <div className={`lg:col-span-2 glass-light rounded-2xl border border-white/5 flex flex-col overflow-hidden transition-opacity duration-1000 min-h-[400px] lg:h-auto ${isDraftComplete ? 'opacity-0 h-0 lg:h-auto' : 'opacity-100'}`}>
+                <div className={`lg:col-span-2 glass-light rounded-2xl border border-white/5 flex flex-col overflow-hidden transition-opacity duration-1000 min-h-[400px] lg:h-auto lg:flex ${isDraftComplete ? 'opacity-0 h-0 lg:h-auto' : activeMobileTab === 'pool' ? 'flex' : 'hidden'}`}>
                     {/* Filters & Search */}
                     <div className="p-3 border-b border-white/5 bg-[#050a18]/40">
                         <input
@@ -173,12 +210,13 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white mb-2 focus:outline-none focus:border-[#a855f7]"
                         />
-                        <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
+                        <div className="scroll-row gap-1.5 pb-1">
                             {['all', 'batter', 'wk', 'allrounder', 'bowler'].map(f => (
                                 <button
                                     key={f}
                                     onClick={() => setFilter(f)}
-                                    className={`shrink-0 px-3 py-1.5 rounded text-[9px] font-mono font-bold uppercase tracking-widest transition-colors ${filter === f ? 'bg-[#a855f7] text-[#050a18]' : 'bg-white/5 text-[#94a3b8] hover:bg-white/10'}`}
+                                    aria-pressed={filter === f}
+                                    className={`shrink-0 px-3.5 py-2 min-h-[36px] rounded-lg text-[10px] font-mono font-bold uppercase tracking-widest transition-colors active:scale-95 ${filter === f ? 'bg-[#a855f7] text-[#050a18]' : 'bg-white/5 text-[#94a3b8] hover:bg-white/10'}`}
                                 >
                                     {f === 'allrounder' ? 'AR' : f}
                                 </button>
@@ -218,7 +256,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                 </div>
 
                 {/* Team 2 Panel */}
-                <div className="glass rounded-2xl p-4 border border-white/5 flex flex-col relative min-h-[300px] lg:h-auto">
+                <div className={`glass rounded-2xl p-4 border border-white/5 flex flex-col relative min-h-[300px] lg:h-auto lg:flex ${activeMobileTab === 'p2' || isDraftComplete ? 'flex' : 'hidden'}`}>
                     <div className="absolute top-0 left-0 w-full h-[150px] bg-[radial-gradient(ellipse_at_top,#ff3b5c10_0%,transparent_70%)] pointer-events-none" />
 
                     <h2 className="text-base md:text-lg font-black text-white drop-shadow-md text-right truncate">{p2}'S XI</h2>

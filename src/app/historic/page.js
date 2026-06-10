@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import ICONIC_MOMENTS from "../lib/iconicMoments";
 
 export default function HistoricPage() {
@@ -8,27 +9,6 @@ export default function HistoricPage() {
 
   return (
     <div className="min-h-screen bg-[#02050c] font-sans text-[#e2e8f0]">
-
-      {/* Top Navigation */}
-      <header className="border-b border-white/5 bg-[#050a18]/90 backdrop-blur-md sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2 md:gap-4 group">
-            <div className="w-7 h-7 md:w-8 md:h-8 rounded bg-[#00e5ff]/10 border border-[#00e5ff]/30 flex items-center justify-center group-hover:bg-[#00e5ff]/20 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 md:w-4 md:h-4">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </div>
-            <span className="text-white font-black text-base md:text-xl tracking-widest uppercase opacity-80 group-hover:opacity-100 group-hover:text-[#00e5ff] transition-all">
-              Home
-            </span>
-          </a>
-          <div className="flex items-center gap-1.5 md:gap-3 px-2.5 md:px-4 py-1 md:py-1.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20 text-[8px] md:text-[10px] font-mono text-[#00ff88] tracking-widest uppercase">
-            <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-[#00ff88] animate-pulse shadow-[0_0_8px_#00ff88]" />
-            <span className="hidden xs:inline">Connected</span>
-            <span className="xs:hidden">Live</span>
-          </div>
-        </div>
-      </header>
 
       <main className="max-w-6xl mx-auto px-4 md:px-6 py-10 md:py-16">
 
@@ -49,11 +29,11 @@ export default function HistoricPage() {
         {/* All 12 Iconic Moment Cards — 3 per row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-16 md:mb-20">
           {ICONIC_MOMENTS.map((moment, i) => (
-            <a
+            <Link
               key={moment.id}
               href={`/simulation/${moment.id}?over=${moment.over}&ball=${moment.ball}&inn=${moment.innings}`}
               className={`group relative flex flex-row bg-[#050a18] rounded-2xl border border-white/[0.06] hover:border-white/15 transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_16px_56px_rgba(0,0,0,0.6)] overflow-hidden ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-              style={{ transitionDelay: `${i * 60}ms`, transitionDuration: "800ms" }}
+              style={{ transitionDelay: `${i * 40}ms`, transitionDuration: "700ms" }}
             >
               {/* Left color accent bar */}
               <div className="w-1 md:w-1.5 shrink-0 rounded-l-2xl" style={{ backgroundColor: moment.color }} />
@@ -89,7 +69,7 @@ export default function HistoricPage() {
                   </span>
                 </div>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
 
@@ -102,13 +82,13 @@ export default function HistoricPage() {
               <p className="text-[#94a3b8] mb-6 md:mb-8 text-xs md:text-sm leading-relaxed">
                 Browse every IPL match from 2008 to 2025. Select any season, any team, any ball — and rewrite history your way.
               </p>
-              <a
+              <Link
                 href="/matches"
                 className="inline-flex items-center gap-2 md:gap-3 px-6 md:px-8 py-3 md:py-3.5 rounded-xl bg-[#00e5ff] text-[#050a18] font-black text-xs md:text-sm uppercase tracking-wider hover:shadow-[0_0_30px_rgba(0,229,255,0.4)] hover:-translate-y-0.5 transition-all duration-300"
               >
                 Browse All Matches
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </a>
+              </Link>
             </div>
           </div>
         </div>

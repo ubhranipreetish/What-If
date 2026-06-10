@@ -1,10 +1,12 @@
 "use client";
 import { useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import ArenaSetup from "@/components/arena/ArenaSetup";
 import ArenaDraft from "@/components/arena/ArenaDraft";
 import ArenaLineups from "@/components/arena/ArenaLineups";
 import LoadingSequence from "@/components/LoadingSequence";
 import LiveDashboard from "@/app/simulation/[matchId]/LiveDashboard";
+import { API_BASE as API } from "@/lib/api";
 
 export default function ArenaPage() {
 
@@ -124,7 +126,7 @@ export default function ArenaPage() {
 
     const handleLoadingComplete = useCallback(async () => {
         try {
-            const response = await fetch("http://localhost:8000/api/simulate/arena/full", {
+            const response = await fetch(`${API}/api/simulate/arena/full`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -190,9 +192,9 @@ export default function ArenaPage() {
             {phase !== 'loading' && phase !== 'simulating' && phase !== 'done' && (
                 <header className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex justify-between items-center bg-transparent pointer-events-none">
                     <div className="pointer-events-auto">
-                        <a href="/" className="text-[9px] md:text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#ff3b5c] transition-colors border border-white/10 hover:border-[#ff3b5c]/30 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#050a18]/60 backdrop-blur-md">
-                            ← <span className="hidden xs:inline">EXIT</span> ARENA
-                        </a>
+                        <Link href="/" className="inline-flex items-center text-[9px] md:text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#ff3b5c] transition-colors border border-white/10 hover:border-[#ff3b5c]/30 px-3 md:px-4 py-2 rounded-full bg-[#050a18]/60 backdrop-blur-md min-h-[40px]">
+                            ← <span className="hidden xs:inline">&nbsp;EXIT</span>&nbsp;ARENA
+                        </Link>
                     </div>
                 </header>
             )}

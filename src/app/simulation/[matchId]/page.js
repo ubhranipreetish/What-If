@@ -2,8 +2,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
 import LiveDashboard from "./LiveDashboard";
-
-const API = "http://localhost:8000";
+import { API_BASE as API } from "@/lib/api";
 
 // ─── Colour helpers ─────────────────────────────────────────
 const TEAM_COLORS = {
@@ -349,6 +348,8 @@ function SimulationPageContent() {
 
       const queue = [overrideBall];
       let currentInningsForSim = inningsNum;
+      let currOver = selectedBall.over;
+      let currBall = selectedBall.ball;
 
       // Build from backend ball log
       for (const entry of (data.ballLog || [])) {
@@ -370,6 +371,8 @@ function SimulationPageContent() {
           currentBattingTeam = currentBowlingTeam;
           currentBowlingTeam = tempTeam;
           currentInningsForSim = 3 - currentInningsForSim;
+          currOver = 0;
+          currBall = 0;
           continue;
         }
 
@@ -388,14 +391,19 @@ function SimulationPageContent() {
 
         score += runsThisBall;
         if (isWicket) wickets++;
-        if (isLegal) legalBalls++;
-
-        let overNum = Math.floor((legalBalls - 1) / 6);
-        const ballInOver = ((legalBalls - 1) % 6) + 1;
+        if (isLegal) {
+          legalBalls++;
+          if (currBall === 6) {
+            currOver += 1;
+            currBall = 1;
+          } else {
+            currBall += 1;
+          }
+        }
         
         queue.push({
-          over: isLegal ? overNum : Math.floor(legalBalls / 6),
-          ball: isLegal ? ballInOver : (legalBalls % 6) + 1,
+          over: currOver,
+          ball: currBall,
           outcome,
           runs: runsThisBall,
           isWicket,
@@ -667,6 +675,8 @@ function SimulationPageContent() {
 
       const queue = [overrideBall];
       let currentInningsForSim = inningsNum;
+      let currOver = targetBall.over;
+      let currBall = targetBall.ball;
 
       for (const entry of (data.ballLog || [])) {
         if (entry.inningsTransition) {
@@ -687,6 +697,8 @@ function SimulationPageContent() {
           currentBattingTeam = currentBowlingTeam;
           currentBowlingTeam = tempTeam;
           currentInningsForSim = 3 - currentInningsForSim;
+          currOver = 0;
+          currBall = 0;
           continue;
         }
 
@@ -705,14 +717,19 @@ function SimulationPageContent() {
 
         score += runsThisBall;
         if (isWicket) wickets++;
-        if (isLegal) legalBalls++;
-
-        let overNum = Math.floor((legalBalls - 1) / 6);
-        const ballInOver = ((legalBalls - 1) % 6) + 1;
+        if (isLegal) {
+          legalBalls++;
+          if (currBall === 6) {
+            currOver += 1;
+            currBall = 1;
+          } else {
+            currBall += 1;
+          }
+        }
         
         queue.push({
-          over: isLegal ? overNum : Math.floor(legalBalls / 6),
-          ball: isLegal ? ballInOver : (legalBalls % 6) + 1,
+          over: currOver,
+          ball: currBall,
           outcome: outcomeVal,
           runs: runsThisBall,
           isWicket,
@@ -889,7 +906,7 @@ function SimulationPageContent() {
           handleBranchSimulate={handleBranchSimulate}
         />
       ) : (
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 flex flex-col lg:flex-row gap-5">
+      <div className={`max-w-7xl mx-auto px-3 sm:px-6 py-5 flex flex-col lg:flex-row gap-5 ${selectedBall ? "pb-96 lg:pb-5" : ""}`}>
 
         {/* ══════════════════════════════════════════════════
             LEFT COLUMN — Ball Timeline
@@ -910,7 +927,7 @@ function SimulationPageContent() {
                   <span className="flex items-center justify-center gap-1.5 md:gap-2">
                     <span className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full" style={{ background: tc }} />
                     <span className="hidden xs:inline">{n === 1 ? "1st Innings" : "2nd Innings"}</span>
-                    <span className="xs:hidden">{n}st INN</span>
+                    <span className="xs:hidden">{n === 1 ? "1st" : "2nd"} INN</span>
                     {inn && <span className="text-[10px] md:text-xs font-mono opacity-70 ml-1">{inn.totalScore}/{inn.totalWickets}</span>}
                   </span>
                 </button>
@@ -989,7 +1006,8 @@ function SimulationPageContent() {
                               setSelectedBallIdx(`${activeInnings}-${overNum}-${bi}`);
                               setOutcomeOverride(null);
                             }}
-                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[8px] sm:text-[10px] font-black transition-all duration-200 ${simMode ? "opacity-40 cursor-not-allowed" : "hover:scale-110 cursor-pointer"} ${isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-[#050a18] scale-110" : ""}`}
+                            aria-label={`Over ${overNum + 1}, ball ${bi + 1}${ball.isWicket ? ", wicket" : `, ${ball.totalRuns} run${ball.totalRuns !== 1 ? "s" : ""}`}`}
+                            className={`w-9 h-9 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-black transition-all duration-200 ${simMode ? "opacity-40 cursor-not-allowed" : "hover:scale-110 cursor-pointer active:scale-95"} ${isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-[#050a18] scale-110" : ""}`}
                             style={{ background: style.bg, border: `1.5px solid ${style.border}`, color: style.text }}
                           >
                             {ballLabel(ball)}
@@ -1020,105 +1038,124 @@ function SimulationPageContent() {
         ══════════════════════════════════════════════════ */}
         <div className="w-full lg:w-[360px] xl:w-[400px] shrink-0 flex flex-col gap-4">
 
-          {/* ── Selected Ball Info ─────────────────────── */}
-          {!simMode && (
-            <div className={`glass rounded-2xl p-4 md:p-5 transition-all duration-300 ${selectedBall ? "border border-[#00e5ff]/20 shadow-[0_0_20px_rgba(0,229,255,0.07)]" : "border border-white/[0.06]"}`}>
-              {!selectedBall ? (
-                <div className="text-center py-6 md:py-8">
-                  <div className="text-3xl md:text-4xl mb-3">👈</div>
-                  <p className="text-[#94a3b8] font-mono text-xs md:text-sm">Select a ball to begin</p>
-                </div>
-              ) : (
-                <>
-                  {/* Ball header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-[9px] md:text-[10px] font-mono text-[#6b7280] tracking-widest uppercase">Selected Ball</p>
-                      <h2 className="text-xl md:text-2xl font-black text-white">Over {selectedBall.over}.{selectedBall.ball}</h2>
-                    </div>
-                    <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-xs md:text-sm font-black`}
-                      style={(() => { const s = ballStyle(selectedBall); return { background: s.bg, border: `2px solid ${s.border}`, color: s.text }; })()}>
-                      {ballLabel(selectedBall)}
-                    </div>
-                  </div>
+          {/* ── Selected Ball Info (Desktop placeholder when no selection) ── */}
+          {!simMode && !selectedBall && (
+            <div className="hidden lg:block glass rounded-2xl p-4 md:p-5 border border-white/[0.06] text-center py-6 md:py-8">
+              <div className="text-3xl md:text-4xl mb-3">👈</div>
+              <p className="text-[#94a3b8] font-mono text-xs md:text-sm">Select a ball to begin</p>
+            </div>
+          )}
 
-                  {/* Event Commentary */}
-                  <div className="glass-light rounded-xl p-4 md:p-5 mb-5 md:mb-6 border border-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
-                    <div className="flex items-center justify-between mb-2 md:mb-3">
-                      <p className="text-[9px] md:text-[10px] font-mono text-[#00e5ff] uppercase tracking-widest flex items-center gap-2">
-                        <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-[#00e5ff] animate-pulse shadow-[0_0_8px_#00e5ff]"></span>
-                        Timeline Event
-                      </p>
-                      <p className="text-[#6b7280] font-mono text-[8px] md:text-[10px] bg-white/5 px-1.5 py-0.5 rounded">
-                        {selectedBall.cumScore}/{selectedBall.cumWickets}
-                      </p>
-                    </div>
-                    
-                    <p className="text-white text-sm md:text-[15px] font-medium leading-relaxed">
-                      <span className="font-bold text-[#a855f7]">{selectedBall.bowler}</span> to <span className="font-bold text-[#00ff88]">{selectedBall.striker}</span>,{" "}
-                      {selectedBall.isWicket
-                        ? <span className="text-[#ff3b5c] font-black uppercase tracking-wider">Wicket!</span>
-                        : `${selectedBall.totalRuns} run${selectedBall.totalRuns !== 1 ? "s" : ""}.`
-                      }
+          {/* ── Selected Ball Info Controls (Sticky Bottom Sheet on Mobile, Static Panel on Desktop) ── */}
+          {!simMode && selectedBall && (
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#050a18]/95 backdrop-blur-xl border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.8)] max-h-[88dvh] overflow-y-auto no-scrollbar lg:max-h-none lg:overflow-visible lg:static lg:bg-transparent lg:border-0 lg:p-0 lg:shadow-none lg:rounded-none lg:backdrop-blur-none animate-slide-up lg:animate-none">
+              <div className="lg:glass lg:rounded-2xl lg:p-4 lg:md:p-5 lg:border lg:border-[#00e5ff]/20 lg:shadow-[0_0_20px_rgba(0,229,255,0.07)] relative">
+                
+                {/* Mobile Drag Indicator / Close Button */}
+                <div className="flex lg:hidden justify-center mb-3">
+                  <div className="w-12 h-1.5 rounded-full bg-white/20" />
+                </div>
+                
+                <div className="absolute top-4 right-4 lg:hidden">
+                  <button
+                    onClick={() => { setSelectedBall(null); setSelectedBallIdx(null); }}
+                    aria-label="Close selected ball panel"
+                    className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#94a3b8] hover:text-white active:scale-95 transition-all"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Ball header */}
+                <div className="flex items-center justify-between mb-3 md:mb-4 pr-6 lg:pr-0">
+                  <div>
+                    <p className="text-[9px] md:text-[10px] font-mono text-[#6b7280] tracking-widest uppercase">Selected Ball</p>
+                    <h2 className="text-lg md:text-2xl font-black text-white">Over {selectedBall.over}.{selectedBall.ball}</h2>
+                  </div>
+                  <div className={`w-8 h-8 md:w-12 md:h-12 rounded-full hidden lg:flex items-center justify-center text-[10px] md:text-sm font-black shrink-0`}
+                    style={(() => { const s = ballStyle(selectedBall); return { background: s.bg, border: `2px solid ${s.border}`, color: s.text }; })()}>
+                    {ballLabel(selectedBall)}
+                  </div>
+                </div>
+
+                {/* Event Commentary */}
+                <div className="glass-light rounded-xl p-3 md:p-5 mb-3 md:mb-6 border border-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]">
+                  <div className="flex items-center justify-between mb-1.5 md:mb-3">
+                    <p className="text-[9px] md:text-[10px] font-mono text-[#00e5ff] uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-[#00e5ff] animate-pulse shadow-[0_0_8px_#00e5ff]"></span>
+                      Timeline Event
+                    </p>
+                    <p className="text-[#6b7280] font-mono text-[8px] md:text-[10px] bg-white/5 px-1.5 py-0.5 rounded">
+                      {selectedBall.cumScore}/{selectedBall.cumWickets}
                     </p>
                   </div>
+                  
+                  <p className="text-white text-xs md:text-[15px] font-medium leading-relaxed">
+                    <span className="font-bold text-[#a855f7]">{selectedBall.bowler}</span> to <span className="font-bold text-[#00ff88]">{selectedBall.striker}</span>,{" "}
+                    {selectedBall.isWicket
+                      ? <span className="text-[#ff3b5c] font-black uppercase tracking-wider">Wicket!</span>
+                      : `${selectedBall.totalRuns} run${selectedBall.totalRuns !== 1 ? "s" : ""}.`
+                    }
+                  </p>
+                </div>
 
-                  {/* Outcome override buttons */}
-                  <div className="mb-4">
-                    <p className="text-[9px] md:text-[10px] font-mono text-[#00e5ff] tracking-widest uppercase mb-3">Change Outcome</p>
-                    <div className="grid grid-cols-5 gap-1 md:gap-1.5">
-                      {[
-                        { label: "•", val: "0", desc: "Dot", color: "#6b7280" },
-                        { label: "1", val: "1", desc: "1R", color: "#00ff88" },
-                        { label: "2", val: "2", desc: "2R", color: "#00ff88" },
-                        { label: "3", val: "3", desc: "3R", color: "#00ff88" },
-                        { label: "4", val: "4", desc: "Four", color: "#00e5ff" },
-                        { label: "6", val: "6", desc: "Six", color: "#ffd700" },
-                        { label: "W", val: "W", desc: "Out", color: "#ff3b5c" },
-                        { label: "Wd", val: "wide", desc: "Wide", color: "#a855f7" },
-                        { label: "NB", val: "nb", desc: "NB", color: "#a855f7" },
-                        { label: "↺", val: null, desc: "Reset", color: "#6b7280" },
-                      ].map(({ label, val, desc, color }) => (
-                        <button
-                          key={desc}
-                          onClick={() => setOutcomeOverride(val)}
-                          className={`py-1.5 md:py-2 rounded-lg text-xs font-black transition-all duration-200 ${outcomeOverride === val ? "scale-105 ring-1 ring-offset-1 ring-offset-[#050a18]" : "hover:scale-105 opacity-70 hover:opacity-100"}`}
-                          style={{
-                            background: outcomeOverride === val ? color + "28" : "rgba(255,255,255,0.05)",
-                            border: `1.5px solid ${outcomeOverride === val ? color : "rgba(255,255,255,0.1)"}`,
-                            color: outcomeOverride === val ? color : "#94a3b8",
-                            ringColor: color,
-                          }}
-                        >
-                          {label}
-                          <span className="block text-[7px] md:text-[8px] font-normal opacity-70">{desc}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Speed selector */}
-                  <div className="flex items-center gap-2 mb-6">
-                    <span className="text-[10px] font-mono text-[#6b7280] uppercase tracking-widest mr-2">Sim Speed</span>
-                    {[{ label: "Faster", ms: 150 }, { label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
-                      <button key={s.ms}
-                        onClick={() => setSpeed(s.ms)}
-                        className={`flex-1 py-2 rounded-lg text-[10px] font-mono transition-all uppercase font-bold tracking-wider ${simSpeed === s.ms ? "bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.4)] scale-105 z-10" : "bg-white/5 text-[#6b7280] border border-white/10 hover:border-white/30 hover:text-white"}`}>
-                        {s.label}
+                {/* Outcome override buttons */}
+                <div className="mb-3 md:mb-4">
+                  <p className="text-[9px] md:text-[10px] font-mono text-[#00e5ff] tracking-widest uppercase mb-2">Change Outcome</p>
+                  <div className="grid grid-cols-5 gap-1 md:gap-1.5">
+                    {[
+                      { label: "•", val: "0", desc: "Dot", color: "#6b7280" },
+                      { label: "1", val: "1", desc: "1R", color: "#00ff88" },
+                      { label: "2", val: "2", desc: "2R", color: "#00ff88" },
+                      { label: "3", val: "3", desc: "3R", color: "#00ff88" },
+                      { label: "4", val: "4", desc: "Four", color: "#00e5ff" },
+                      { label: "6", val: "6", desc: "Six", color: "#ffd700" },
+                      { label: "W", val: "W", desc: "Out", color: "#ff3b5c" },
+                      { label: "Wd", val: "wide", desc: "Wide", color: "#a855f7" },
+                      { label: "NB", val: "nb", desc: "NB", color: "#a855f7" },
+                      { label: "↺", val: null, desc: "Reset", color: "#6b7280" },
+                    ].map(({ label, val, desc, color }) => (
+                      <button
+                        key={desc}
+                        onClick={() => setOutcomeOverride(val)}
+                        aria-pressed={outcomeOverride === val}
+                        aria-label={desc}
+                        className={`py-2 md:py-2 min-h-[44px] rounded-lg text-[11px] md:text-xs font-black transition-all duration-200 ${outcomeOverride === val ? "scale-105 ring-1 ring-offset-1 ring-offset-[#050a18]" : "hover:scale-105 active:scale-95 opacity-70 hover:opacity-100"}`}
+                        style={{
+                          background: outcomeOverride === val ? color + "28" : "rgba(255,255,255,0.05)",
+                          border: `1.5px solid ${outcomeOverride === val ? color : "rgba(255,255,255,0.1)"}`,
+                          color: outcomeOverride === val ? color : "#94a3b8",
+                          ringColor: color,
+                        }}
+                      >
+                        {label}
+                        <span className="block text-[8px] md:text-[9px] font-normal opacity-70">{desc}</span>
                       </button>
                     ))}
                   </div>
+                </div>
 
-                  {/* Simulate button */}
-                  <button
-                    onClick={handleSimulate}
-                    className="w-full py-3.5 rounded-xl font-black text-sm tracking-widest text-white transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ background: "linear-gradient(135deg, #00e5ff, #a855f7)", boxShadow: "0 0 24px rgba(0,229,255,0.25)" }}
-                  >
-                    ⚡ SIMULATE FROM THIS BALL
-                  </button>
-                </>
-              )}
+                {/* Speed selector */}
+                <div className="flex items-center gap-2 mb-4 md:mb-6">
+                  <span className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase tracking-widest mr-2">Sim Speed</span>
+                  {[{ label: "Faster", ms: 150 }, { label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
+                    <button key={s.ms}
+                      onClick={() => setSpeed(s.ms)}
+                      className={`flex-1 py-2.5 md:py-2 rounded-lg text-[10px] md:text-[10px] font-mono transition-all uppercase font-bold tracking-wider active:scale-95 ${simSpeed === s.ms ? "bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.4)] scale-105 z-10" : "bg-white/5 text-[#6b7280] border border-white/10 hover:border-white/30 hover:text-white"}`}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Simulate button */}
+                <button
+                  onClick={handleSimulate}
+                  className="w-full py-2.5 md:py-3.5 rounded-xl font-black text-xs md:text-sm tracking-widest text-white transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ background: "linear-gradient(135deg, #00e5ff, #a855f7)", boxShadow: "0 0 24px rgba(0,229,255,0.25)" }}
+                >
+                  ⚡ SIMULATE FROM THIS BALL
+                </button>
+              </div>
             </div>
           )}
 

@@ -24,9 +24,19 @@ from simulation_engine import (
 
 app = FastAPI(title="What-If Engine AI")
 
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
+frontend_url = os.environ.get("FRONTEND_URL")
+if frontend_url:
+    # Support comma-separated origins
+    origins = [o.strip() for o in frontend_url.split(",") if o.strip()]
+    allowed_origins.extend(origins)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

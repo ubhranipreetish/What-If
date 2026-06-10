@@ -6,6 +6,7 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
     const [tossWinner, setTossWinner] = useState(null);
     const [tossDecision, setTossDecision] = useState(null); // 'bat' | 'bowl'
     const [phase, setPhase] = useState("toss"); // 'toss' | 'decision' | 'lineups'
+    const [activeMobileTab, setActiveMobileTab] = useState('t1'); // 't1' | 't2'
     
     // Sort default batting order (Batters -> WK -> AR -> Bowlers)
     const sortBatting = (roster) => {
@@ -92,9 +93,9 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
             <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
                 <h2 className="text-4xl font-black text-[#00ff88] mb-4">{winnerName} WINS THE TOSS</h2>
                 <p className="text-[#94a3b8] font-mono mb-8 uppercase tracking-widest">What will you choose?</p>
-                <div className="flex gap-6">
-                    <button onClick={() => handleDecision('bat')} className="px-10 py-5 rounded-2xl glass border border-white/10 hover:border-[#00e5ff] hover:bg-[#00e5ff]/10 text-white font-black text-xl transition-all">BAT FIRST</button>
-                    <button onClick={() => handleDecision('bowl')} className="px-10 py-5 rounded-2xl glass border border-white/10 hover:border-[#ff3b5c] hover:bg-[#ff3b5c]/10 text-white font-black text-xl transition-all">BOWL FIRST</button>
+                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md px-2">
+                    <button onClick={() => handleDecision('bat')} className="flex-1 px-6 sm:px-10 py-5 rounded-2xl glass border border-white/10 hover:border-[#00e5ff] hover:bg-[#00e5ff]/10 active:scale-[0.98] text-white font-black text-lg sm:text-xl transition-all">BAT FIRST</button>
+                    <button onClick={() => handleDecision('bowl')} className="flex-1 px-6 sm:px-10 py-5 rounded-2xl glass border border-white/10 hover:border-[#ff3b5c] hover:bg-[#ff3b5c]/10 active:scale-[0.98] text-white font-black text-lg sm:text-xl transition-all">BOWL FIRST</button>
                 </div>
             </div>
         );
@@ -121,8 +122,8 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
                                     <p className="text-white font-bold text-xs truncate">{p.name}</p>
                                 </div>
                                 <div className="flex gap-1">
-                                    <button onClick={() => movePlayer('bat', teamId, i, -1)} disabled={i === 0} className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30">▲</button>
-                                    <button onClick={() => movePlayer('bat', teamId, i, 1)} disabled={i === batOrder.length - 1} className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30">▼</button>
+                                    <button onClick={() => movePlayer('bat', teamId, i, -1)} disabled={i === 0} aria-label="Move up" className="w-9 h-9 rounded-md bg-white/5 hover:bg-white/10 flex items-center justify-center text-[11px] disabled:opacity-30 active:scale-90 transition-transform">▲</button>
+                                    <button onClick={() => movePlayer('bat', teamId, i, 1)} disabled={i === batOrder.length - 1} aria-label="Move down" className="w-9 h-9 rounded-md bg-white/5 hover:bg-white/10 flex items-center justify-center text-[11px] disabled:opacity-30 active:scale-90 transition-transform">▼</button>
                                 </div>
                             </div>
                         ))}
@@ -141,8 +142,8 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
                                     <p className="text-white font-bold text-xs truncate">{p.name}</p>
                                 </div>
                                 <div className="flex gap-1">
-                                    <button onClick={() => movePlayer('bowl', teamId, i, -1)} disabled={i === 0} className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30">▲</button>
-                                    <button onClick={() => movePlayer('bowl', teamId, i, 1)} disabled={i === bowlOrder.length - 1} className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30">▼</button>
+                                    <button onClick={() => movePlayer('bowl', teamId, i, -1)} disabled={i === 0} aria-label="Move up" className="w-9 h-9 rounded-md bg-white/5 hover:bg-white/10 flex items-center justify-center text-[11px] disabled:opacity-30 active:scale-90 transition-transform">▲</button>
+                                    <button onClick={() => movePlayer('bowl', teamId, i, 1)} disabled={i === bowlOrder.length - 1} aria-label="Move down" className="w-9 h-9 rounded-md bg-white/5 hover:bg-white/10 flex items-center justify-center text-[11px] disabled:opacity-30 active:scale-90 transition-transform">▼</button>
                                 </div>
                             </div>
                         ))}
@@ -153,84 +154,51 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
     );
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-6 md:py-8 flex flex-col min-h-screen lg:h-[calc(100vh-80px)]">
+        <div className="max-w-7xl mx-auto px-4 py-6 md:py-8 pb-28 lg:pb-8 flex flex-col min-h-[100dvh] lg:h-[calc(100dvh-80px)]">
             <div className="text-center mb-6 shrink-0">
                 <h2 className="text-2xl md:text-3xl font-black text-white tracking-widest uppercase drop-shadow-md">SET YOUR LINEUPS</h2>
                 <p className="text-[#94a3b8] font-mono text-[10px] md:text-xs mt-2">Adjust batting orders and bowling priorities before simulation begins.</p>
             </div>
-            <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-y-auto lg:overflow-hidden pb-4 lg:pb-0">
-                <TeamLineup name={p1} batOrder={t1BatOrder} bowlOrder={t1BowlOrder} teamId={1} isBattingFirst={t1IsBattingFirst} />
-                <TeamLineup name={p2} batOrder={t2BatOrder} bowlOrder={t2BowlOrder} teamId={2} isBattingFirst={!t1IsBattingFirst} />
+
+            {/* Mobile Tab Selector */}
+            <div className="flex lg:hidden px-2 mb-4 shrink-0 gap-2">
+                <button
+                    onClick={() => setActiveMobileTab('t1')}
+                    className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                        activeMobileTab === 't1'
+                            ? 'bg-[#00e5ff]/10 border-[#00e5ff]/40 text-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.1)]'
+                            : 'bg-white/5 border-transparent text-[#94a3b8]'
+                    }`}
+                >
+                    {p1}'s Lineup
+                </button>
+                <button
+                    onClick={() => setActiveMobileTab('t2')}
+                    className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                        activeMobileTab === 't2'
+                            ? 'bg-[#ff3b5c]/10 border-[#ff3b5c]/40 text-[#ff3b5c] shadow-[0_0_15px_rgba(255,59,92,0.1)]'
+                            : 'bg-white/5 border-transparent text-[#94a3b8]'
+                    }`}
+                >
+                    {p2}'s Lineup
+                </button>
             </div>
-            <div className="mt-6 text-center shrink-0">
-                <GlowButton onClick={handleComplete} className="bg-[#00ff88] !text-black w-full md:w-auto px-8 md:px-12 py-3.5 md:py-4 text-base md:text-lg">LOCK LINEUPS & SIMULATE</GlowButton>
+
+            <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-y-auto lg:overflow-hidden pb-4 lg:pb-0">
+                <div className={`flex-1 flex flex-col lg:flex ${activeMobileTab === 't1' ? 'flex' : 'hidden'}`}>
+                    <TeamLineup name={p1} batOrder={t1BatOrder} bowlOrder={t1BowlOrder} teamId={1} isBattingFirst={t1IsBattingFirst} />
+                </div>
+                <div className={`flex-1 flex flex-col lg:flex ${activeMobileTab === 't2' ? 'flex' : 'hidden'}`}>
+                    <TeamLineup name={p2} batOrder={t2BatOrder} bowlOrder={t2BowlOrder} teamId={2} isBattingFirst={!t1IsBattingFirst} />
+                </div>
+            </div>
+
+            {/* Sticky Bottom Simulate Button for Mobile, Static for Desktop */}
+            <div className="fixed bottom-0 left-0 right-0 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-[#050a18]/95 backdrop-blur-md border-t border-white/10 z-40 flex justify-center lg:static lg:bg-transparent lg:border-0 lg:p-0 lg:mt-6 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] lg:shadow-none">
+                <GlowButton onClick={handleComplete} className="bg-[#00ff88] !text-black w-full lg:w-auto px-8 lg:px-12 py-3 lg:py-4 text-sm lg:text-lg">
+                    LOCK LINEUPS & SIMULATE
+                </GlowButton>
             </div>
         </div>
     );
 }
-
-const TeamLineup = ({ name, batOrder, bowlOrder, teamId, isBattingFirst, movePlayer }) => (
-    <div className="glass p-4 md:p-6 rounded-2xl md:rounded-3xl border border-white/5 flex-1 min-h-[400px] lg:h-auto flex flex-col overflow-hidden">
-        <h3 className="text-lg md:text-2xl font-black text-white truncate">{name}'S XI</h3>
-        <p className="text-[9px] md:text-[10px] font-mono tracking-widest uppercase mb-4 border-b border-white/10 pb-2" style={{ color: teamId === 1 ? '#00e5ff' : '#ff3b5c' }}>
-            {isBattingFirst ? 'Batting First' : 'Bowling First'}
-        </p>
-        
-        <div className="flex-1 overflow-y-auto pr-1 space-y-6 custom-scrollbar">
-            {/* Batting Order */}
-            <div>
-                <h4 className="text-[10px] md:text-xs font-black text-white mb-3 uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#00e5ff]" />
-                    Batting Lineup
-                </h4>
-                <div className="space-y-1.5">
-                    {batOrder.map((p, i) => (
-                        <div key={`bat-${p.id}`} className="flex items-center gap-2 glass-light p-2 md:p-2.5 rounded-lg border border-white/5 bg-black/20">
-                            <span className="w-5 text-center font-mono text-[9px] md:text-[10px] text-[#6b7280]">{i + 1}</span>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-white font-bold text-[11px] md:text-xs truncate">{p.name}</p>
-                                <p className="text-[8px] font-mono text-[#6b7280] uppercase">{p.role}</p>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                                <button onClick={() => movePlayer('bat', teamId, i, -1)} disabled={i === 0} className="w-7 h-7 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m18 15-6-6-6 6"/></svg>
-                                </button>
-                                <button onClick={() => movePlayer('bat', teamId, i, 1)} disabled={i === batOrder.length - 1} className="w-7 h-7 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Bowling Priority */}
-            <div>
-                <h4 className="text-[10px] md:text-xs font-black text-white mb-2 uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#ff3b5c]" />
-                    Bowling Priority
-                </h4>
-                <p className="text-[8px] md:text-[9px] font-mono text-[#6b7280] mb-3 leading-tight">Order in which bowlers will be utilized by AI.</p>
-                <div className="space-y-1.5">
-                    {bowlOrder.map((p, i) => (
-                        <div key={`bowl-${p.id}`} className="flex items-center gap-2 glass-light p-2 md:p-2.5 rounded-lg border border-white/5 bg-black/20">
-                            <span className="w-5 text-center font-mono text-[9px] md:text-[10px] text-[#6b7280]">{i + 1}</span>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-white font-bold text-[11px] md:text-xs truncate">{p.name}</p>
-                                <p className="text-[8px] font-mono text-[#6b7280] uppercase">ECON: {p.economy}</p>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                                <button onClick={() => movePlayer('bowl', teamId, i, -1)} disabled={i === 0} className="w-7 h-7 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m18 15-6-6-6 6"/></svg>
-                                </button>
-                                <button onClick={() => movePlayer('bowl', teamId, i, 1)} disabled={i === bowlOrder.length - 1} className="w-7 h-7 rounded bg-white/5 hover:bg-white/10 flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    </div>
-);

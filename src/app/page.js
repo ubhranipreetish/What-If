@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import ICONIC_MOMENTS from "./lib/iconicMoments";
 
 export default function Home() {
@@ -77,7 +78,7 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto text-left mb-16 md:mb-24">
 
           {/* Portal 1: The Time Machine */}
-          <a href="/matches" className="group relative block rounded-[24px] md:rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(0,229,255,0.15)] transition-all duration-700 hover:-translate-y-2">
+          <Link href="/matches" className="group relative block rounded-[24px] md:rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(0,229,255,0.15)] transition-all duration-700 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-[#00e5ff]/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
             <div className="relative bg-[#050a18] rounded-[23px] md:rounded-[31px] p-8 md:p-10 h-full overflow-hidden flex flex-col justify-between">
               
@@ -101,10 +102,10 @@ export default function Home() {
                 </span>
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* Portal 2: The Arena */}
-          <a href="/arena" className="group relative block rounded-[24px] md:rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(255,59,92,0.15)] transition-all duration-700 hover:-translate-y-2">
+          <Link href="/arena" className="group relative block rounded-[24px] md:rounded-[32px] overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent p-[1px] cursor-pointer hover:shadow-[0_0_80px_rgba(255,59,92,0.15)] transition-all duration-700 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-bl from-[#ff3b5c]/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
             <div className="relative bg-[#050a18] rounded-[23px] md:rounded-[31px] p-8 md:p-10 h-full overflow-hidden flex flex-col justify-between">
               
@@ -128,7 +129,7 @@ export default function Home() {
                 </span>
               </div>
             </div>
-          </a>
+          </Link>
 
         </div>
 
@@ -142,15 +143,15 @@ export default function Home() {
                 <p className="text-[10px] font-mono text-[#6b7280] mt-1 tracking-[0.2em] uppercase">Jump straight into iconic IPL scenarios</p>
               </div>
             </div>
-            <a href="/historic" className="text-[10px] font-mono text-[#00e5ff]/60 hover:text-[#00e5ff] uppercase tracking-[0.2em] transition-colors flex items-center gap-2 self-start md:self-auto">
+            <Link href="/historic" className="text-[10px] font-mono text-[#00e5ff]/60 hover:text-[#00e5ff] uppercase tracking-[0.2em] transition-colors flex items-center gap-2 self-start md:self-auto">
               View All 12
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </a>
+            </Link>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
             {featuredMoments.map((moment, i) => (
-              <a
+              <Link
                 key={moment.id}
                 href={`/simulation/${moment.id}?over=${moment.over}&ball=${moment.ball}&inn=${moment.innings}`}
                 className="group relative flex flex-row bg-[#050a18] rounded-2xl border border-white/[0.06] hover:border-white/15 transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_16px_56px_rgba(0,0,0,0.6)] overflow-hidden"
@@ -183,13 +184,13 @@ export default function Home() {
 
                   {/* Row 4: CTA */}
                   <div className="flex items-center justify-end mt-auto pt-3 border-t border-white/[0.04] relative z-10">
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center gap-1.5" style={{ color: moment.color }}>
+                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider md:opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center gap-1.5" style={{ color: moment.color }}>
                       Simulate
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </span>
                   </div>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         </div>

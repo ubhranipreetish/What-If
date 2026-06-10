@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import GlowButton from "@/components/GlowButton";
 
 export default function ArenaResults({ results, p1, p2, t1Roster, t2Roster, onRestart }) {
@@ -106,9 +107,9 @@ export default function ArenaResults({ results, p1, p2, t1Roster, t2Roster, onRe
                         DRAFT ANOTHER BATTLE
                     </GlowButton>
                     <div className="mt-6">
-                        <a href="/" className="text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#00e5ff] transition-colors border border-transparent hover:border-[#00e5ff]/30 px-4 py-2 rounded-full">
+                        <Link href="/" className="inline-flex items-center min-h-[40px] text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#00e5ff] transition-colors border border-transparent hover:border-[#00e5ff]/30 px-4 py-2 rounded-full">
                             ← BACK TO HUB
-                        </a>
+                        </Link>
                     </div>
                 </div>
 

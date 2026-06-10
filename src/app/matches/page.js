@@ -1,31 +1,17 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { API_BASE as API } from "@/lib/api";
+import { teamColor, teamShort } from "@/lib/teams";
 
 function MatchHubContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
     const [selectedYear, setSelectedYear] = useState(null);
-    const [selectedTeam, setSelectedTeam] = useState(null);  
-    const [selectedOpponent, setSelectedOpponent] = useState(null); 
-
-    // Helper: convert raw team name to color
-    const teamColor = (t) =>
-        t.includes("Chennai") ? "#F9CD05" :
-            t.includes("Mumbai") ? "#004BA0" :
-                t.includes("Royal") ? "#D4213D" :
-                    t.includes("Kolkata") ? "#3A225D" :
-                        t.includes("Gujarat") ? "#1B2133" :
-                            t.includes("Rajasthan") ? "#EB1B99" :
-                                t.includes("Sunrisers") ? "#FF822A" :
-                                    t.includes("Punjab") ? "#D71920" :
-                                        t.includes("Delhi") ? "#0078BC" :
-                                            t.includes("Hyderabad") ? "#FF822A" :
-                                                t.includes("Deccan") ? "#FF822A" :
-                                                    t.includes("Kochi") ? "#4CAF50" :
-                                                        t.includes("Pune") ? "#9C27B0" :
-                                                            t.includes("Lucknow") ? "#004BA0" : "#00e5ff";
+    const [selectedTeam, setSelectedTeam] = useState(null);
+    const [selectedOpponent, setSelectedOpponent] = useState(null);
+    const [filtersExpanded, setFiltersExpanded] = useState(false);
 
     // 0️⃣ Initialize from Query Params
     useEffect(() => {
@@ -39,7 +25,7 @@ function MatchHubContent() {
             const name = decodeURIComponent(teamName);
             setSelectedTeam({ 
                 name: name, 
-                short: name.substring(0, 3).toUpperCase(), 
+                short: teamShort(name),
                 color: teamColor(name) 
             });
         }
@@ -47,7 +33,7 @@ function MatchHubContent() {
             const name = decodeURIComponent(oppName);
             setSelectedOpponent({ 
                 name: name, 
-                short: name.substring(0, 3).toUpperCase(), 
+                short: teamShort(name),
                 color: teamColor(name) 
             });
         }
@@ -64,7 +50,7 @@ function MatchHubContent() {
     useEffect(() => {
         const fetchYears = async () => {
             try {
-                const res = await fetch("http://localhost:8000/api/metadata/years");
+                const res = await fetch(`${API}/api/metadata/years`);
                 const data = await res.json();
                 setYears(data.years || []);
             } catch (error) {
@@ -85,10 +71,10 @@ function MatchHubContent() {
         const fetchTeams = async () => {
             setLoading(prev => ({ ...prev, teams: true }));
             try {
-                const res = await fetch(`http://localhost:8000/api/metadata/teams?year=${selectedYear}`);
+                const res = await fetch(`${API}/api/metadata/teams?year=${selectedYear}`);
                 const data = await res.json();
                 const teamMap = data.teams.map(t => ({
-                    short: t.substring(0, 3).toUpperCase(),
+                    short: teamShort(t),
                     name: t,
                     color: teamColor(t)
                 }));
@@ -113,7 +99,7 @@ function MatchHubContent() {
         const fetchMatches = async () => {
             setLoading(prev => ({ ...prev, matches: true }));
             try {
-                const res = await fetch(`http://localhost:8000/api/metadata/matches?year=${selectedYear}&team=${encodeURIComponent(selectedTeam.name)}`);
+                const res = await fetch(`${API}/api/metadata/matches?year=${selectedYear}&team=${encodeURIComponent(selectedTeam.name)}`);
                 const data = await res.json();
                 const formatted = data.matches.map(m => {
                     const oppName = m.title.replace("vs ", "");
@@ -122,7 +108,7 @@ function MatchHubContent() {
                         date: m.date,
                         title: m.title,
                         team1: selectedTeam,
-                        team2: { short: oppName.substring(0, 3).toUpperCase(), name: oppName, color: teamColor(oppName) },
+                        team2: { short: teamShort(oppName), name: oppName, color: teamColor(oppName) },
                         venue: m.venue,
                         winner: m.winner,
                         margin: m.margin
@@ -159,26 +145,6 @@ function MatchHubContent() {
 
     return (
         <div className="min-h-screen bg-[#02050c] font-sans text-[#e2e8f0]">
-            
-            {/* Top Navigation */}
-            <header className="border-b border-white/5 bg-[#050a18]/90 backdrop-blur-md sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <a href="/" className="flex items-center gap-4 group">
-                        <div className="w-8 h-8 rounded bg-[#00e5ff]/10 border border-[#00e5ff]/30 flex items-center justify-center group-hover:bg-[#00e5ff]/20 transition-colors">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M19 12H5M12 19l-7-7 7-7"/>
-                            </svg>
-                        </div>
-                        <span className="text-white font-black text-xl tracking-widest uppercase opacity-80 group-hover:opacity-100 group-hover:text-[#00e5ff] transition-all">
-                            Home
-                        </span>
-                    </a>
-                    <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20 text-[10px] font-mono text-[#00ff88] tracking-widest uppercase">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse shadow-[0_0_8px_#00ff88]" />
-                        Connected
-                    </div>
-                </div>
-            </header>
 
             <main className="max-w-6xl mx-auto px-4 md:px-6 py-10 md:py-16">
                 
@@ -204,8 +170,26 @@ function MatchHubContent() {
                     <span className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></span>
                 </div>
 
+                {/* Mobile Filter Toggle for Small Screens */}
+                <div className="flex md:hidden items-center justify-between p-4 mb-5 rounded-xl bg-[#050a18] border border-white/5 shadow-lg relative z-10">
+                    <div className="flex-1 min-w-0 pr-2">
+                        <p className="text-[9px] font-mono text-[#6b7280] uppercase tracking-wider">Active Filters</p>
+                        <p className="text-white text-xs font-bold truncate">
+                            {selectedYear ? `${selectedYear}` : 'All Seasons'}
+                            {selectedTeam ? ` • ${selectedTeam.name}` : ''}
+                            {selectedOpponent ? ` vs ${selectedOpponent.name}` : ''}
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setFiltersExpanded(!filtersExpanded)}
+                        className="px-3 py-1.5 rounded-lg bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] text-xs font-bold transition-all shrink-0 hover:bg-[#00e5ff]/20 active:scale-95"
+                    >
+                        {filtersExpanded ? 'Hide Filters ▴' : 'Edit Filters ▾'}
+                    </button>
+                </div>
+
                 {/* ─── Filters Section ─── */}
-                <div className="bg-[#050a18] rounded-2xl md:rounded-3xl p-5 md:p-8 mb-10 md:mb-16 border border-white/5 shadow-2xl relative">
+                <div className={`bg-[#050a18] rounded-2xl md:rounded-3xl p-5 md:p-8 mb-10 md:mb-16 border border-white/5 shadow-2xl relative md:block ${filtersExpanded ? 'block' : 'hidden'}`}>
                     <div className="absolute inset-0 bg-gradient-to-br from-[#00e5ff]/[0.02] to-transparent pointer-events-none rounded-2xl md:rounded-3xl" />
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 relative z-10">
@@ -228,7 +212,7 @@ function MatchHubContent() {
                                         <button
                                             key={year}
                                             onClick={() => { setSelectedYear(year); setSelectedTeam(null); }}
-                                            className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg font-mono text-xs md:text-sm transition-all duration-300 ${selectedYear === year
+                                            className={`px-3.5 md:px-4 py-2 min-h-[40px] rounded-lg font-mono text-sm transition-all duration-300 active:scale-95 ${selectedYear === year
                                                 ? "bg-[#00e5ff] text-[#050a18] font-bold shadow-[0_0_15px_rgba(0,229,255,0.4)]"
                                                 : "bg-white/5 text-[#94a3b8] hover:bg-white/10 hover:text-white border border-transparent hover:border-white/10"
                                                 }`}
@@ -253,7 +237,7 @@ function MatchHubContent() {
                                         <button
                                             key={team.short}
                                             onClick={() => setSelectedTeam(team)}
-                                            className={`px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 flex items-center gap-2 md:gap-3 ${selectedTeam?.short === team.short
+                                            className={`px-3.5 md:px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-bold transition-all duration-300 active:scale-95 flex items-center gap-2 md:gap-3 ${selectedTeam?.short === team.short
                                                 ? "bg-white/10 text-white border-transparent shadow-lg transform scale-105"
                                                 : "bg-transparent border border-white/10 text-[#94a3b8] hover:bg-white/5 hover:text-white"
                                                 }`}
@@ -291,7 +275,7 @@ function MatchHubContent() {
                                     <button
                                         key={opp.name}
                                         onClick={() => setSelectedOpponent(selectedOpponent?.name === opp.name ? null : opp)}
-                                        className={`px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 flex items-center gap-2 md:gap-3 ${selectedOpponent?.name === opp.name
+                                        className={`px-3.5 md:px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-bold transition-all duration-300 active:scale-95 flex items-center gap-2 md:gap-3 ${selectedOpponent?.name === opp.name
                                             ? "bg-white/10 text-white border-transparent shadow-lg transform scale-105"
                                             : "bg-transparent border border-white/10 text-[#94a3b8] hover:bg-white/5 hover:text-white"
                                             }`}
@@ -313,8 +297,9 @@ function MatchHubContent() {
                         <div className="absolute top-4 md:top-8 right-4 md:right-8 z-20">
                             <button
                                 onClick={handleReset}
-                                className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/5 hover:bg-[#ff3b5c]/20 hover:text-[#ff3b5c] text-[#94a3b8] flex items-center justify-center transition-all border border-transparent hover:border-[#ff3b5c]/30"
+                                className="w-9 h-9 rounded-full bg-white/5 hover:bg-[#ff3b5c]/20 hover:text-[#ff3b5c] text-[#94a3b8] flex items-center justify-center transition-all border border-transparent hover:border-[#ff3b5c]/30 active:scale-95"
                                 title="Clear All Filters"
+                                aria-label="Clear all filters"
                             >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <line x1="18" y1="6" x2="6" y2="18"></line>

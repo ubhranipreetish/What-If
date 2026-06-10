@@ -157,6 +157,7 @@ const LiveDashboard = ({
 
   const [selectedBallIdx, setSelectedBallIdx] = useState(null);
   const [outcomeOverride, setOutcomeOverride] = useState(null);
+  const [activeMobileTab, setActiveMobileTab] = useState('scorecard'); // 'scorecard' | 'commentary'
 
   const ballsByOver = useMemo(() => {
     const map = {};
@@ -172,7 +173,7 @@ const LiveDashboard = ({
   const overNums = useMemo(() => Object.keys(ballsByOver).map(Number).sort((a, b) => a - b), [ballsByOver]);
 
   return (
-    <div className="w-full h-[calc(100vh-64px)] flex flex-col bg-[#02050c] overflow-hidden">
+    <div className="w-full min-h-[calc(100dvh-64px)] lg:h-[calc(100dvh-64px)] flex flex-col bg-[#02050c] overflow-y-auto lg:overflow-hidden">
 
       {/* ── Top Scoreboard Bar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 md:px-6 py-2 md:py-4 border-b border-white/10 bg-[#050a18] gap-2 md:gap-3">
@@ -294,7 +295,9 @@ const LiveDashboard = ({
               <button
                 key={val}
                 onClick={() => setOutcomeOverride(val)}
-                className={`px-3 py-1.5 rounded text-[10px] font-black transition-all flex flex-col items-center justify-center min-w-[32px] ${outcomeOverride === val ? "scale-105" : "opacity-70 hover:opacity-100"}`}
+                aria-pressed={outcomeOverride === val}
+                aria-label={desc}
+                className={`px-3 py-2 rounded text-[11px] font-black transition-all flex flex-col items-center justify-center min-w-[40px] min-h-[40px] active:scale-95 ${outcomeOverride === val ? "scale-105" : "opacity-70 hover:opacity-100"}`}
                 style={{
                   background: outcomeOverride === val ? color + "25" : "rgba(255,255,255,0.03)",
                   border: `1.5px solid ${outcomeOverride === val ? color : "rgba(255,255,255,0.08)"}`,
@@ -330,18 +333,42 @@ const LiveDashboard = ({
         </div>
       )}
 
+      {/* ── Mobile Tab Selector ── */}
+      <div className="flex lg:hidden px-3 md:px-6 mt-2 shrink-0 gap-2">
+        <button
+          onClick={() => setActiveMobileTab('scorecard')}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
+            activeMobileTab === 'scorecard'
+              ? 'bg-[#00ff88]/10 border-[#00ff88]/40 text-[#00ff88] shadow-[0_0_15px_rgba(0,255,136,0.1)]'
+              : 'bg-white/5 border-transparent text-[#94a3b8]'
+          }`}
+        >
+          Scorecard
+        </button>
+        <button
+          onClick={() => setActiveMobileTab('commentary')}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
+            activeMobileTab === 'commentary'
+              ? 'bg-[#00e5ff]/10 border-[#00e5ff]/40 text-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.1)]'
+              : 'bg-white/5 border-transparent text-[#94a3b8]'
+          }`}
+        >
+          Commentary
+        </button>
+      </div>
+
       {/* ── Main Content Area (Commentary & Scorecard) ── */}
-      <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row px-3 md:px-6 gap-6 md:gap-6 pb-28 md:pb-24 mt-2 md:mt-4 custom-scrollbar">
+      <div className="flex-1 lg:overflow-hidden flex flex-col lg:flex-row px-3 md:px-6 gap-6 md:gap-6 pb-36 md:pb-24 mt-2 md:mt-4 custom-scrollbar">
 
         {/* Left: Commentary Feed */}
-        <div className="w-full lg:flex-1 flex flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-hidden shadow-2xl min-h-[450px] lg:h-full shrink-0 lg:shrink">
+        <div className={`w-full lg:flex-1 lg:flex flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-hidden shadow-2xl min-h-[450px] lg:h-full shrink-0 lg:shrink ${activeMobileTab === 'commentary' ? 'flex' : 'hidden'}`}>
           <div className="px-3 md:px-5 py-2 md:py-3 border-b border-white/[0.06] flex justify-between items-center bg-black/20">
             <h3 className="text-[10px] md:text-sm font-bold text-white uppercase tracking-wider">Commentary</h3>
             <span className="text-[7px] md:text-[10px] font-mono text-[#a855f7] bg-[#a855f7]/10 px-1.5 py-0.5 rounded">Timeline Feed</span>
           </div>
 
-          <div ref={feedRef} className="flex-1 overflow-y-auto p-3 md:p-5 space-y-2 md:space-y-3 scroll-smooth custom-scrollbar">
-            {[...alternateBalls].reverse().map((ball, i) => {
+          <div ref={feedRef} className="flex-1 overflow-y-visible lg:overflow-y-auto p-3 md:p-5 space-y-2 md:space-y-3 scroll-smooth custom-scrollbar">
+            {[...simBalls].reverse().map((ball, i) => {
               if (ball.isOverBreak) {
                 return (
                   <div key={i} className="py-1.5 px-3 md:px-4 my-2 md:my-4 rounded-lg bg-gradient-to-r from-white/5 to-transparent border-l-2 border-white/20">
@@ -374,7 +401,7 @@ const LiveDashboard = ({
         </div>
 
         {/* Right: Detailed Scorecard */}
-        <div className="w-full lg:w-1/2 flex flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-visible shadow-2xl lg:h-full shrink-0 lg:shrink">
+        <div className={`w-full lg:w-1/2 lg:flex flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-visible shadow-2xl lg:h-full shrink-0 lg:shrink ${activeMobileTab === 'scorecard' ? 'flex' : 'hidden'}`}>
           <div className="px-5 py-3 border-b border-white/[0.06] bg-black/20">
             <h3 className="text-[10px] md:text-sm font-bold text-white uppercase tracking-wider">Full Scorecard</h3>
           </div>
@@ -398,8 +425,8 @@ const LiveDashboard = ({
                     <tr key={name} className="text-[#c4cad6]">
                       <td className="py-2 md:py-2.5 flex items-center gap-2 min-w-0">
                         <span className={`truncate ${isBatting ? "text-white font-semibold" : "opacity-60"}`}>{name}</span>
-                        {isBatting && <span className="text-[8px] bg-white/10 px-1 rounded text-white">*</span>}
-                        {stats.out && <span className="text-[8px] text-[#ff3b5c] uppercase font-bold shrink-0">Out</span>}
+                        {isBatting && <span className="text-[9px] bg-white/10 px-1 rounded text-white">*</span>}
+                        {stats.out && <span className="text-[9px] text-[#ff3b5c] uppercase font-bold shrink-0">Out</span>}
                       </td>
                       <td className="py-2 md:py-2.5 text-right font-bold text-white">{stats.runs}</td>
                       <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.balls}</td>
@@ -445,31 +472,31 @@ const LiveDashboard = ({
       </div>
 
       {/* ── Fixed Bottom Control Bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 md:h-20 bg-[#050a18]/95 backdrop-blur-md border-t border-white/10 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-8 px-4 py-2 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <div className="fixed bottom-0 left-0 right-0 h-auto pt-3.5 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:h-20 md:py-0 bg-[#050a18]/95 backdrop-blur-md border-t border-white/10 flex flex-col md:flex-row items-center justify-center gap-3 md:gap-8 px-4 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
 
         <div className="flex items-center gap-2 justify-center w-full md:w-auto">
           {simRunning ? (
-            <button onClick={handlePause} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-8 md:h-10 rounded-lg bg-[#ff6b35]/10 border border-[#ff6b35]/30 text-[#ff6b35] font-bold font-mono text-[9px] md:text-xs hover:bg-[#ff6b35]/20 transition-all flex items-center justify-center gap-1.5">
+            <button onClick={handlePause} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-10 md:h-10 rounded-lg bg-[#ff6b35]/10 border border-[#ff6b35]/30 text-[#ff6b35] font-bold font-mono text-[9px] md:text-xs hover:bg-[#ff6b35]/20 transition-all flex items-center justify-center gap-1.5">
               <span className="text-xs md:text-sm">⏸</span> <span>PAUSE</span>
             </button>
           ) : (
-            <button onClick={handleResume} disabled={winnerDeclared !== null} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-8 md:h-10 rounded-lg bg-[#00ff88]/10 border border-[#00ff88]/30 text-[#00ff88] font-bold font-mono text-[9px] md:text-xs hover:bg-[#00ff88]/20 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5">
+            <button onClick={handleResume} disabled={winnerDeclared !== null} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-10 md:h-10 rounded-lg bg-[#00ff88]/10 border border-[#00ff88]/30 text-[#00ff88] font-bold font-mono text-[9px] md:text-xs hover:bg-[#00ff88]/20 transition-all disabled:opacity-40 flex items-center justify-center gap-1.5">
               <span className="text-xs md:text-sm">▶</span> <span>RESUME</span>
             </button>
           )}
 
-          <button onClick={handleChangeBall} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-8 md:h-10 rounded-lg bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] font-bold font-mono text-[9px] md:text-xs hover:bg-[#00e5ff]/20 transition-all flex items-center justify-center gap-1.5">
+          <button onClick={handleChangeBall} className="flex-1 md:flex-none w-[90px] md:w-[110px] h-10 md:h-10 rounded-lg bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] font-bold font-mono text-[9px] md:text-xs hover:bg-[#00e5ff]/20 transition-all flex items-center justify-center gap-1.5">
             <span className="text-xs md:text-sm">↺</span> <span>RESET</span>
           </button>
         </div>
 
         <div className="hidden md:block h-8 w-[1px] bg-white/10 mx-2"></div>
 
-        <div className="flex items-center gap-1 md:gap-2 justify-center w-full md:w-auto">
-          {[{ label: "Faster", ms: 150 }, { label: "Fast", ms: 300 }, { label: "Norm", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
+        <div className="flex items-center gap-1.5 md:gap-2 justify-center w-full md:w-auto">
+          {[{ label: "Faster", ms: 150 }, { label: "Fast", ms: 300 }, { label: "Normal", ms: 750 }, { label: "Slow", ms: 1500 }].map(s => (
             <button key={s.ms}
               onClick={() => setSpeed(s.ms)}
-              className={`w-[55px] md:w-[70px] h-7 md:h-9 rounded text-[8px] md:text-[10px] font-mono transition-all uppercase font-bold tracking-wider flex items-center justify-center ${simSpeed === s.ms ? "bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff]" : "bg-transparent text-[#6b7280] border border-white/10 hover:border-white/30"}`}>
+              className={`px-2 md:px-3 min-w-[62px] md:w-[75px] h-9 md:h-9 rounded text-[10px] md:text-[10px] font-mono transition-all uppercase font-bold tracking-wider flex items-center justify-center active:scale-95 ${simSpeed === s.ms ? "bg-[#00e5ff]/20 text-[#00e5ff] border border-[#00e5ff]" : "bg-transparent text-[#6b7280] border border-white/10 hover:border-white/30"}`}>
               {s.label}
             </button>
           ))}
