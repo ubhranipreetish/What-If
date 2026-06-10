@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { API_BASE as API } from "@/lib/api";
 import { teamColor, teamShort } from "@/lib/teams";
@@ -45,22 +45,26 @@ function MatchHubContent() {
     const [allMatches, setAllMatches] = useState([]);     
     const [filteredMatches, setFilteredMatches] = useState([]);
     const [loading, setLoading] = useState({ years: true, teams: false, matches: false });
+    const [error, setError] = useState(false); // backend unreachable
 
-    // 1️⃣ Fetch Years on Mount
-    useEffect(() => {
-        const fetchYears = async () => {
-            try {
-                const res = await fetch(`${API}/api/metadata/years`);
-                const data = await res.json();
-                setYears(data.years || []);
-            } catch (error) {
-                console.error("Backend Offline: Years", error);
-            } finally {
-                setLoading(prev => ({ ...prev, years: false }));
-            }
-        };
-        fetchYears();
+    // 1️⃣ Fetch Years on Mount (and on Retry)
+    const fetchYears = useCallback(async () => {
+        setLoading(prev => ({ ...prev, years: true }));
+        setError(false);
+        try {
+            const res = await fetch(`${API}/api/metadata/years`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            setYears(data.years || []);
+        } catch (err) {
+            console.error("Backend Offline: Years", err);
+            setError(true);
+        } finally {
+            setLoading(prev => ({ ...prev, years: false }));
+        }
     }, []);
+
+    useEffect(() => { fetchYears(); }, [fetchYears]);
 
     // 2️⃣ Fetch Teams when Year is Selected
     useEffect(() => {
@@ -170,6 +174,22 @@ function MatchHubContent() {
                     <span className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></span>
                 </div>
 
+                {/* Backend unreachable — explicit error + retry instead of an endless "Awaiting..." */}
+                {error && (
+                    <div role="alert" className="mb-8 md:mb-10 rounded-2xl border border-[#ff3b5c]/30 bg-[#ff3b5c]/[0.07] p-5 md:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <span className="w-9 h-9 rounded-full bg-[#ff3b5c]/15 border border-[#ff3b5c]/40 flex items-center justify-center text-[#ff3b5c] font-black shrink-0" aria-hidden="true">!</span>
+                            <div className="min-w-0">
+                                <p className="text-white font-bold text-sm">Can&apos;t reach the match engine</p>
+                                <p className="text-[#94a3b8] text-xs mt-0.5 leading-relaxed">The backend isn&apos;t responding. Check that it&apos;s running, then try again.</p>
+                            </div>
+                        </div>
+                        <button onClick={fetchYears} className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 min-h-[44px] rounded-xl bg-[#ff3b5c]/15 border border-[#ff3b5c]/40 text-[#ff3b5c] font-bold text-sm hover:bg-[#ff3b5c]/25 transition-all active:scale-95">
+                            ↻ Retry
+                        </button>
+                    </div>
+                )}
+
                 {/* Mobile Filter Toggle for Small Screens */}
                 <div className="flex md:hidden items-center justify-between p-4 mb-5 rounded-xl bg-[#050a18] border border-white/5 shadow-lg relative z-10">
                     <div className="flex-1 min-w-0 pr-2">
@@ -202,9 +222,10 @@ function MatchHubContent() {
                             </div>
                             
                             {loading.years ? (
-                                <div className="flex gap-2 animate-pulse">
-                                    <div className="h-8 md:h-10 w-16 md:w-20 bg-white/5 rounded-lg"></div>
-                                    <div className="h-8 md:h-10 w-16 md:w-20 bg-white/5 rounded-lg"></div>
+                                <div className="flex flex-wrap gap-2 animate-pulse">
+                                    {Array.from({ length: 9 }).map((_, i) => (
+                                        <div key={i} className="h-10 w-16 bg-white/5 rounded-lg"></div>
+                                    ))}
                                 </div>
                             ) : (
                                 <div className="flex flex-wrap gap-2">
@@ -232,7 +253,13 @@ function MatchHubContent() {
                             </div>
                             
                             <div className="flex flex-wrap gap-2 md:gap-3">
-                                {availableTeams.length > 0 ? (
+                                {loading.teams ? (
+                                    <div className="flex flex-wrap gap-2 md:gap-3 animate-pulse">
+                                        {Array.from({ length: 6 }).map((_, i) => (
+                                            <div key={i} className="h-11 w-28 bg-white/5 rounded-xl"></div>
+                                        ))}
+                                    </div>
+                                ) : availableTeams.length > 0 ? (
                                     availableTeams.map(team => (
                                         <button
                                             key={team.short}
@@ -319,6 +346,24 @@ function MatchHubContent() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        {loading.matches && filteredMatches.length === 0 && Array.from({ length: 4 }).map((_, i) => (
+                            <div key={`sk-${i}`} className="animate-pulse bg-[#050a18] rounded-2xl md:rounded-3xl border border-white/5 overflow-hidden">
+                                <div className="h-1.5 md:h-2 w-full bg-white/5"></div>
+                                <div className="p-6 md:p-8">
+                                    <div className="flex items-center justify-between mb-6 md:mb-8">
+                                        <div className="flex items-center gap-3 md:gap-4">
+                                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-white/5"></div>
+                                            <div className="w-6 h-3 bg-white/5 rounded"></div>
+                                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-white/5"></div>
+                                        </div>
+                                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/5"></div>
+                                    </div>
+                                    <div className="h-5 w-2/3 bg-white/5 rounded mb-3"></div>
+                                    <div className="h-3 w-1/3 bg-white/5 rounded mb-6"></div>
+                                    <div className="h-14 w-full bg-white/[0.03] rounded-xl"></div>
+                                </div>
+                            </div>
+                        ))}
                         {filteredMatches.map((match, i) => (
                             <button
                                 key={match.id}

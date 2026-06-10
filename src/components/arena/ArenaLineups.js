@@ -161,9 +161,11 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
             </div>
 
             {/* Mobile Tab Selector */}
-            <div className="flex lg:hidden px-2 mb-4 shrink-0 gap-2">
+            <div className="flex lg:hidden px-2 mb-4 shrink-0 gap-2" role="tablist" aria-label="Select lineup">
                 <button
                     onClick={() => setActiveMobileTab('t1')}
+                    role="tab"
+                    aria-selected={activeMobileTab === 't1'}
                     className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
                         activeMobileTab === 't1'
                             ? 'bg-[#00e5ff]/10 border-[#00e5ff]/40 text-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.1)]'
@@ -174,6 +176,8 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
                 </button>
                 <button
                     onClick={() => setActiveMobileTab('t2')}
+                    role="tab"
+                    aria-selected={activeMobileTab === 't2'}
                     className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
                         activeMobileTab === 't2'
                             ? 'bg-[#ff3b5c]/10 border-[#ff3b5c]/40 text-[#ff3b5c] shadow-[0_0_15px_rgba(255,59,92,0.1)]'

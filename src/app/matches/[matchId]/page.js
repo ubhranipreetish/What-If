@@ -104,7 +104,7 @@ export default function MatchDetailPage() {
         </div>
 
         {/* Innings Tabs */}
-        <div className="flex gap-3 mb-6">
+        <div className="flex gap-3 mb-6" role="tablist" aria-label="Select innings">
           {[1, 2].map(n => {
             const inn = n === 1 ? inn1 : inn2;
             if (!inn) return null;
@@ -112,6 +112,9 @@ export default function MatchDetailPage() {
             const active = activeInnings === n;
             return (
               <button key={n} onClick={() => setActiveInnings(n)}
+                role="tab"
+                aria-selected={active}
+                aria-label={`${inn.battingTeam}, ${inn.totalScore} for ${inn.totalWickets}`}
                 className={`flex-1 py-3 px-5 rounded-xl font-bold text-sm transition-all duration-300 border ${active ? "text-white scale-[1.01]" : "glass-light text-[#6b7280] hover:text-white"}`}
                 style={active ? { background: color + "22", borderColor: color + "80", boxShadow: `0 0 16px ${color}20` } : { borderColor: "rgba(255,255,255,0.08)" }}>
                 <span className="flex items-center justify-center gap-2">
@@ -125,9 +128,11 @@ export default function MatchDetailPage() {
         </div>
 
         {/* View Toggle */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6" role="tablist" aria-label="Innings view mode">
           {[{ key: "wickets", label: "🔴 Fall of Wickets", count: wickets.length }, { key: "overs", label: "📊 Over-by-Over", count: overs.length }].map(({ key, label, count }) => (
             <button key={key} onClick={() => setViewMode(key)}
+              role="tab"
+              aria-selected={viewMode === key}
               className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all border ${viewMode === key ? "bg-[#00e5ff]/10 border-[#00e5ff]/40 text-[#00e5ff]" : "glass-light border-white/[0.06] text-[#6b7280] hover:text-white"}`}>
               {label} <span className="text-xs opacity-60 ml-1">({count})</span>
             </button>

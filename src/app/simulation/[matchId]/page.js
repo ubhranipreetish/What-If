@@ -832,6 +832,7 @@ function SimulationPageContent() {
                 const opp = matchMeta?.team2?.name || "";
                 router.push(`/matches?year=${year}&team=${encodeURIComponent(team)}&opp=${encodeURIComponent(opp)}`);
               }}
+              aria-label="Back to match browser"
               className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs font-mono font-bold tracking-widest text-[#94a3b8] hover:text-white transition-colors group">
               <span className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 md:w-4 md:h-4">
@@ -886,8 +887,12 @@ function SimulationPageContent() {
         </div>
       </div>
 
+      <h1 className="sr-only">
+        What-if simulation{matchMeta?.team1?.name ? `: ${matchMeta.team1.name} vs ${matchMeta?.team2?.name || ""}` : ""}
+      </h1>
+
       {simMode ? (
-        <LiveDashboard 
+        <LiveDashboard
           simResult={simResult}
           simBalls={simBalls}
           simRunning={simRunning}
@@ -914,12 +919,15 @@ function SimulationPageContent() {
         <div className="flex-1 min-w-0">
 
           {/* ── Innings Tabs ──────────────────────────────── */}
-          <div className="flex gap-2 mb-4 md:mb-5">
+          <div className="flex gap-2 mb-4 md:mb-5" role="tablist" aria-label="Select innings">
             {inningsKeys.map(n => {
               const inn = innings[String(n)];
               const tc = teamColor(inn?.battingTeam);
               return (
                 <button key={n}
+                  role="tab"
+                  aria-selected={activeInnings === n}
+                  aria-label={`${n === 1 ? "1st" : "2nd"} innings${inn ? `, ${inn.totalScore} for ${inn.totalWickets}` : ""}`}
                   onClick={() => { setActiveInnings(n); setSelectedBall(null); setSelectedBallIdx(null); setOutcomeOverride(null); if (simMode) handleChangeBall(); }}
                   className={`flex-1 py-2 md:py-2.5 px-3 md:px-4 rounded-xl font-bold text-xs md:text-sm transition-all duration-300 border ${activeInnings === n ? "text-white scale-[1.01]" : "glass-light text-[#6b7280] hover:text-white"}`}
                   style={activeInnings === n ? { background: tc + "22", borderColor: tc + "80", boxShadow: `0 0 16px ${tc}20` } : { borderColor: "rgba(255,255,255,0.08)" }}

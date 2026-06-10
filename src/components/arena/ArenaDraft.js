@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { arenaPlayerPool } from "@/data/arenaPlayers";
 
 export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
@@ -18,8 +18,17 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
     const [t1Roster, setT1Roster] = useState([]);
     const [t2Roster, setT2Roster] = useState([]);
     const [search, setSearch] = useState("");
-    const [filter, setFilter] = useState("all"); 
+    const [filter, setFilter] = useState("all");
     const [activeMobileTab, setActiveMobileTab] = useState('pool'); // 'pool' | 'p1' | 'p2'
+
+    // Inline, auto-dismissing validation message (replaces blocking window.alert).
+    const [toast, setToast] = useState("");
+    const toastTimer = useRef(null);
+    const showToast = (msg) => {
+        setToast(msg);
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        toastTimer.current = setTimeout(() => setToast(""), 4500);
+    };
 
     const activeTeamId = snakeOrder[currentPickIndex];
     const activePlayerName = activeTeamId === 1 ? p1 : p2;
@@ -61,7 +70,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
         if (isDraftComplete) return;
 
         if (!canPick(player, activeRoster)) {
-            alert(`Drafting ${player.name} violates roster composition rules (Min: 3 BAT, 1 WK, 3 BOWL, 1 AR, 5 BOWL options total). Choose someone else to ensure a legal squad.`);
+            showToast(`Can't pick ${player.name} yet — you'd be left without room for a legal XI (need 3 BAT, 1 WK, 1 AR, 3 BOWL, and 5 bowling options total).`);
             return;
         }
 
@@ -78,6 +87,16 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
             ), 1000);
         }
         setCurrentPickIndex(prev => prev + 1);
+    };
+
+    // Undo the most recent pick so a misclick doesn't derail the whole draft.
+    const handleUndo = () => {
+        if (currentPickIndex === 0 || currentPickIndex >= 22) return;
+        const lastTeam = snakeOrder[currentPickIndex - 1];
+        if (lastTeam === 1) setT1Roster(prev => prev.slice(0, -1));
+        else setT2Roster(prev => prev.slice(0, -1));
+        setCurrentPickIndex(prev => prev - 1);
+        setToast("");
     };
 
     const EmptySlot = ({ num, activeClass }) => (
@@ -107,6 +126,8 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
     
     const t1Counts = getCounts(t1Roster);
     const t2Counts = getCounts(t2Roster);
+    const t1Value = t1Roster.reduce((s, p) => s + (p.cost || 0), 0);
+    const t2Value = t2Roster.reduce((s, p) => s + (p.cost || 0), 0);
 
     const RosterStatus = ({ counts }) => (
         <div className="flex justify-between items-center px-1 mt-2 text-[9px] md:text-[10px] font-mono uppercase text-[#94a3b8]">
@@ -137,13 +158,25 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                         </span>
                     </div>
                 )}
+                {!isDraftComplete && currentPickIndex > 0 && (
+                    <div className="mt-2.5">
+                        <button
+                            onClick={handleUndo}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] hover:text-white border border-white/10 hover:border-white/30 bg-white/5 transition-all active:scale-95"
+                        >
+                            ↩ Undo last pick
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Mobile Tab Selector */}
             {!isDraftComplete && (
-                <div className="flex lg:hidden px-2 mb-4 shrink-0 gap-2">
+                <div className="flex lg:hidden px-2 mb-4 shrink-0 gap-2" role="tablist" aria-label="Draft view">
                     <button
                         onClick={() => setActiveMobileTab('pool')}
+                        role="tab"
+                        aria-selected={activeMobileTab === 'pool'}
                         className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
                             activeMobileTab === 'pool'
                                 ? 'bg-[#a855f7]/10 border-[#a855f7]/40 text-[#a855f7] shadow-[0_0_15px_rgba(168,85,247,0.1)]'
@@ -154,6 +187,8 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                     </button>
                     <button
                         onClick={() => setActiveMobileTab('p1')}
+                        role="tab"
+                        aria-selected={activeMobileTab === 'p1'}
                         className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
                             activeMobileTab === 'p1'
                                 ? 'bg-[#00e5ff]/10 border-[#00e5ff]/40 text-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.1)]'
@@ -164,6 +199,8 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                     </button>
                     <button
                         onClick={() => setActiveMobileTab('p2')}
+                        role="tab"
+                        aria-selected={activeMobileTab === 'p2'}
                         className={`flex-1 min-w-0 truncate py-2.5 rounded-xl text-xs font-bold transition-all border ${
                             activeMobileTab === 'p2'
                                 ? 'bg-[#ff3b5c]/10 border-[#ff3b5c]/40 text-[#ff3b5c] shadow-[0_0_15px_rgba(255,59,92,0.1)]'
@@ -186,6 +223,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                     <p className="text-[#00e5ff] text-[9px] font-mono font-bold tracking-widest uppercase border-b border-white/10 pb-2 mb-2">TEAM ONE</p>
                     
                     <RosterStatus counts={t1Counts} />
+                    <p className="text-[9px] font-mono text-center mt-1.5 text-[#00e5ff]/80"><span className="text-[#6b7280]">SQUAD VALUE</span> ${t1Value}M</p>
 
                     <div className="space-y-2 flex-1 overflow-y-auto pr-1 mt-3 custom-scrollbar">
                         {Array.from({ length: 11 }, (_, i) => {
@@ -263,6 +301,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                     <p className="text-[#ff3b5c] text-[9px] font-mono font-bold tracking-widest uppercase border-b border-white/10 pb-2 mb-2 text-right">TEAM TWO</p>
 
                     <RosterStatus counts={t2Counts} />
+                    <p className="text-[9px] font-mono text-center mt-1.5 text-[#ff3b5c]/80"><span className="text-[#6b7280]">SQUAD VALUE</span> ${t2Value}M</p>
 
                     <div className="space-y-2 flex-1 overflow-y-auto pl-1 mt-3 custom-scrollbar">
                         {Array.from({ length: 11 }, (_, i) => {
@@ -277,6 +316,15 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                 </div>
 
             </div>
+
+            {/* Inline validation toast — replaces the old blocking window.alert */}
+            {toast && (
+                <div role="alert" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-[60] w-[92vw] max-w-md px-4 py-3 rounded-xl bg-[#ff3b5c]/15 border border-[#ff3b5c]/40 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex items-start gap-2.5 animate-slide-up">
+                    <span className="text-[#ff3b5c] text-sm shrink-0 mt-0.5" aria-hidden="true">⚠</span>
+                    <p className="flex-1 text-[11px] sm:text-xs text-white font-medium leading-snug">{toast}</p>
+                    <button onClick={() => setToast("")} aria-label="Dismiss message" className="shrink-0 text-[#94a3b8] hover:text-white text-sm leading-none">✕</button>
+                </div>
+            )}
         </div>
     );
 }

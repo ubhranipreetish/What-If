@@ -17,7 +17,8 @@ const LiveDashboard = ({
   activeInnings,
   innings,
   handleBranchSimulate,
-  isArena
+  isArena,
+  transitionMs = 3000
 }) => {
   const feedRef = useRef(null);
 
@@ -113,17 +114,20 @@ const LiveDashboard = ({
   const lastElement = simBalls.length > 0 ? simBalls[simBalls.length - 1] : null;
   const isTransitioning = lastElement?.inningsTransition;
 
-  // Innings transition countdown logic
-  const [countdown, setCountdown] = React.useState(3);
+  // Innings transition countdown — derived from the actual pause duration the
+  // parent uses (transitionMs), so the on-screen "3…2…1" matches reality
+  // instead of being hardcoded.
+  const transitionSecs = Math.max(1, Math.round(transitionMs / 1000));
+  const [countdown, setCountdown] = React.useState(transitionSecs);
   useEffect(() => {
     if (isTransitioning) {
-      setCountdown(3);
+      setCountdown(transitionSecs);
       const timer = setInterval(() => {
         setCountdown(prev => (prev > 1 ? prev - 1 : 1));
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [isTransitioning]);
+  }, [isTransitioning, transitionSecs]);
 
   if (!simResult || !liveStats) return null;
 
@@ -334,9 +338,11 @@ const LiveDashboard = ({
       )}
 
       {/* ── Mobile Tab Selector ── */}
-      <div className="flex lg:hidden px-3 md:px-6 mt-2 shrink-0 gap-2">
+      <div className="flex lg:hidden px-3 md:px-6 mt-2 shrink-0 gap-2" role="tablist" aria-label="Match panel">
         <button
           onClick={() => setActiveMobileTab('scorecard')}
+          role="tab"
+          aria-selected={activeMobileTab === 'scorecard'}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
             activeMobileTab === 'scorecard'
               ? 'bg-[#00ff88]/10 border-[#00ff88]/40 text-[#00ff88] shadow-[0_0_15px_rgba(0,255,136,0.1)]'
@@ -347,6 +353,8 @@ const LiveDashboard = ({
         </button>
         <button
           onClick={() => setActiveMobileTab('commentary')}
+          role="tab"
+          aria-selected={activeMobileTab === 'commentary'}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
             activeMobileTab === 'commentary'
               ? 'bg-[#00e5ff]/10 border-[#00e5ff]/40 text-[#00e5ff] shadow-[0_0_15px_rgba(0,229,255,0.1)]'
@@ -409,12 +417,12 @@ const LiveDashboard = ({
             <table className="w-full text-xs md:text-sm text-left">
               <thead className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
                 <tr>
-                  <th className="pb-2 font-normal">Batter</th>
-                  <th className="pb-2 font-normal text-right">R</th>
-                  <th className="pb-2 font-normal text-right">B</th>
-                  <th className="pb-2 font-normal text-right hidden xs:table-cell">4s</th>
-                  <th className="pb-2 font-normal text-right hidden xs:table-cell">6s</th>
-                  <th className="pb-2 font-normal text-right">SR</th>
+                  <th scope="col" className="pb-2 font-semibold">Batter</th>
+                  <th scope="col" className="pb-2 font-semibold text-right">R</th>
+                  <th scope="col" className="pb-2 font-semibold text-right">B</th>
+                  <th scope="col" className="pb-2 font-semibold text-right hidden xs:table-cell">4s</th>
+                  <th scope="col" className="pb-2 font-semibold text-right hidden xs:table-cell">6s</th>
+                  <th scope="col" className="pb-2 font-semibold text-right">SR</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">
@@ -445,11 +453,11 @@ const LiveDashboard = ({
             <table className="w-full text-xs md:text-sm text-left">
               <thead className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
                 <tr>
-                  <th className="pb-2 font-normal">Bowler</th>
-                  <th className="pb-2 font-normal text-right">O</th>
-                  <th className="pb-2 font-normal text-right">R</th>
-                  <th className="pb-2 font-normal text-right font-bold text-white">W</th>
-                  <th className="pb-2 font-normal text-right">Econ</th>
+                  <th scope="col" className="pb-2 font-semibold">Bowler</th>
+                  <th scope="col" className="pb-2 font-semibold text-right">O</th>
+                  <th scope="col" className="pb-2 font-semibold text-right">R</th>
+                  <th scope="col" className="pb-2 font-semibold text-right font-bold text-white">W</th>
+                  <th scope="col" className="pb-2 font-semibold text-right">Econ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">

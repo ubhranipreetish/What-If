@@ -1,12 +1,16 @@
 "use client";
-import { useState, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import ArenaSetup from "@/components/arena/ArenaSetup";
 import ArenaDraft from "@/components/arena/ArenaDraft";
 import ArenaLineups from "@/components/arena/ArenaLineups";
+import ArenaSteps from "@/components/arena/ArenaSteps";
 import LoadingSequence from "@/components/LoadingSequence";
 import LiveDashboard from "@/app/simulation/[matchId]/LiveDashboard";
 import { API_BASE as API } from "@/lib/api";
+
+// Maps the engine phase to a step index for the progress indicator.
+const PHASE_TO_STEP = { setup: 0, draft: 1, lineups: 2, loading: 3, simulating: 3, done: 3 };
 
 export default function ArenaPage() {
 
@@ -20,7 +24,15 @@ export default function ArenaPage() {
     const [t1Roster, setT1Roster] = useState([]);
     const [t2Roster, setT2Roster] = useState([]);
     const [lineupData, setLineupData] = useState(null);
-    
+    const [simError, setSimError] = useState(""); // inline sim-failure message
+
+    // Auto-dismiss the sim-failure toast.
+    useEffect(() => {
+        if (!simError) return;
+        const t = setTimeout(() => setSimError(""), 6000);
+        return () => clearTimeout(t);
+    }, [simError]);
+
     // Simulation playback state
     const [results, setResults] = useState(null);
     const resultsRef = useRef(null);
@@ -161,7 +173,7 @@ export default function ArenaPage() {
             
         } catch (error) {
             console.error("Simulation Engine Error:", error);
-            alert("Failed to simulate match: " + error.message);
+            setSimError(error.message || "The match engine didn't respond.");
             setPhase('lineups'); // Go back to retry
         }
     }, [p1, p2, lineupData, startSimTick]);
@@ -190,11 +202,14 @@ export default function ArenaPage() {
         <div className="min-h-screen grid-bg relative">
             {/* Header / Nav */}
             {phase !== 'loading' && phase !== 'simulating' && phase !== 'done' && (
-                <header className="absolute top-0 left-0 w-full z-50 p-4 md:p-6 flex justify-between items-center bg-transparent pointer-events-none">
-                    <div className="pointer-events-auto">
+                <header className="absolute top-0 left-0 w-full z-50 px-3 md:px-6 pt-3 md:pt-6 flex justify-between items-center gap-2 bg-transparent pointer-events-none">
+                    <div className="pointer-events-auto shrink-0">
                         <Link href="/" className="inline-flex items-center text-[9px] md:text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#ff3b5c] transition-colors border border-white/10 hover:border-[#ff3b5c]/30 px-3 md:px-4 py-2 rounded-full bg-[#050a18]/60 backdrop-blur-md min-h-[40px]">
                             ← <span className="hidden xs:inline">&nbsp;EXIT</span>&nbsp;ARENA
                         </Link>
+                    </div>
+                    <div className="pointer-events-auto shrink-0">
+                        <ArenaSteps current={PHASE_TO_STEP[phase] ?? 0} />
                     </div>
                 </header>
             )}
@@ -229,6 +244,7 @@ export default function ArenaPage() {
                         <div className="max-w-7xl mx-auto px-4 md:px-6 py-2 md:py-3 grid grid-cols-3 items-center">
                             <div className="flex justify-start">
                                 <button onClick={handleRestart}
+                                    aria-label="Start a new draft"
                                     className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs font-mono font-bold tracking-widest text-[#94a3b8] hover:text-white transition-colors group">
                                     <span className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 md:w-3.5 md:h-3.5">
@@ -288,8 +304,18 @@ export default function ArenaPage() {
                             innings={1}
                             rosters={{}}
                             isArena={true}
+                            transitionMs={4000}
                         />
                     </div>
+                </div>
+            )}
+
+            {/* Sim-failure toast — replaces a blocking window.alert */}
+            {simError && (
+                <div role="alert" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-[70] w-[92vw] max-w-md px-4 py-3 rounded-xl bg-[#ff3b5c]/15 border border-[#ff3b5c]/40 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.6)] flex items-start gap-2.5 animate-slide-up">
+                    <span className="text-[#ff3b5c] text-sm shrink-0 mt-0.5" aria-hidden="true">⚠</span>
+                    <p className="flex-1 text-[11px] sm:text-xs text-white font-medium leading-snug">Couldn&apos;t simulate the match: {simError}. Adjust your lineups and try again.</p>
+                    <button onClick={() => setSimError("")} aria-label="Dismiss message" className="shrink-0 text-[#94a3b8] hover:text-white text-sm leading-none">✕</button>
                 </div>
             )}
         </div>
