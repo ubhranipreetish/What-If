@@ -1,5 +1,24 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 
+const getTeamShort = (name) => {
+  if (!name) return "??";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 3) {
+    return (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
+  }
+  if (name.includes("Mumbai")) return "MI";
+  if (name.includes("Punjab")) return "PBKS";
+  if (name.includes("Gujarat")) return "GT";
+  if (name.includes("Lucknow")) return "LSG";
+  if (name.includes("Kolkata")) return "KKR";
+  if (name.includes("Rajasthan")) return "RR";
+  if (name.includes("Delhi")) return "DC";
+  if (name.includes("Chennai")) return "CSK";
+  if (name.includes("Hyderabad") || name.includes("Sunrisers")) return "SRH";
+  if (name.includes("Bangalore") || name.includes("Bengaluru") || name.includes("Royal")) return "RCB";
+  return name.slice(0, 3).toUpperCase();
+};
+
 const LiveDashboard = ({
   simResult,
   simBalls,
@@ -21,65 +40,26 @@ const LiveDashboard = ({
   transitionMs = 3000
 }) => {
   const feedRef = useRef(null);
+  const [selectedScorecardInnings, setSelectedScorecardInnings] = useState(1);
+  const [outcomeOverride, setOutcomeOverride] = useState(null);
+  const [activeMobileTab, setActiveMobileTab] = useState('scorecard'); // 'scorecard' | 'commentary'
 
-  // Auto-scroll logic removed as feed is now reversed (newest at top)
+  // Sync selected scorecard tab with active simulation innings
+  useEffect(() => {
+    if (activeInnings) {
+      setSelectedScorecardInnings(activeInnings);
+    }
+  }, [activeInnings]);
 
-  // Derive Live Stats by playing through simBalls
-  const liveStats = useMemo(() => {
-    if (!simResult) return null;
-
-    const batters = JSON.parse(JSON.stringify(simResult.initialBatters || {}));
-    const bowlers = JSON.parse(JSON.stringify(simResult.initialBowlers || {}));
-
-    const initStriker = simResult.startStriker;
-    const initNonStriker = simResult.startNonStriker;
-    const initBowler = simResult.startBowler;
-
-    if (initStriker && !batters[initStriker]) batters[initStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
-    if (initNonStriker && !batters[initNonStriker]) batters[initNonStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
-    if (initBowler && !bowlers[initBowler]) bowlers[initBowler] = { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
-
-    let currentStriker = initStriker;
-    let currentNonStriker = initNonStriker;
-    let currentBowler = initBowler;
-
-    simBalls.forEach(ball => {
-      if (ball.isOverBreak) {
-        if (ball.inningsTransition) {
-          // Clear batters, bowlers and current player refs for the new innings.
-          // They will be repopulated as the first 2nd-innings ball is processed.
-          for (const key in batters) delete batters[key];
-          for (const key in bowlers) delete bowlers[key];
-          currentStriker = "";
-          currentNonStriker = "";
-          currentBowler = "";
-        } else {
-          // Switch strike at end of over
-          const temp = currentStriker;
-          currentStriker = currentNonStriker;
-          currentNonStriker = temp;
-        }
-
-        // Over break message contains next bowler name in our page.js
-        const match = ball.message?.match(/Next bowler: (.+)/);
-        if (match) {
-          currentBowler = match[1];
-          if (!bowlers[currentBowler]) bowlers[currentBowler] = { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
-        }
-        return;
-      }
-
-      const { outcome, runs, isWicket, extraType, striker, non_striker, bowler } = ball;
-
-      // Update names from the ball data
-      currentStriker = striker;
-      if (non_striker) currentNonStriker = non_striker;
-      if (currentStriker === currentNonStriker) currentNonStriker = "";
-      currentBowler = bowler;
+  // Helper to apply ball details to a running stats scorecard
+  const applyBallsToStats = (balls, batters, bowlers) => {
+    balls.forEach(ball => {
+      const { outcome, runs, isWicket, extraType, striker, non_striker, bowler, runsOffBat, player_dismissed } = ball;
+      if (!striker) return;
 
       if (!batters[striker]) batters[striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
-      if (currentNonStriker && !batters[currentNonStriker]) batters[currentNonStriker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
-      if (!bowlers[bowler]) bowlers[bowler] = { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
+      if (non_striker && !batters[non_striker]) batters[non_striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, out: false };
+      if (bowler && !bowlers[bowler]) bowlers[bowler] = { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
 
       const isLegal = extraType !== 'wide' && extraType !== 'nb';
 
@@ -87,36 +67,130 @@ const LiveDashboard = ({
       if (isLegal || isWicket) {
         batters[striker].balls += 1;
       }
-      if (outcome !== 'wide' && outcome !== 'nb' && !isWicket) {
-        const rNum = parseInt(outcome) || 0;
-        batters[striker].runs += rNum;
-        if (rNum === 4) batters[striker].fours += 1;
-        if (rNum === 6) batters[striker].sixes += 1;
+      
+      const rVal = outcome !== undefined
+        ? (outcome !== 'wide' && outcome !== 'nb' && !isWicket ? (parseInt(outcome) || 0) : 0)
+        : (runsOffBat ?? 0);
+
+      batters[striker].runs += rVal;
+      if (rVal === 4) batters[striker].fours += 1;
+      if (rVal === 6) batters[striker].sixes += 1;
+
+      // Handle dismissals
+      if (isWicket) {
+        const dismissedName = player_dismissed || striker;
+        if (batters[dismissedName]) {
+          batters[dismissedName].out = true;
+        } else {
+          batters[striker].out = true;
+        }
       }
-      if (isWicket) batters[striker].out = true;
 
       // Bowler stats
-      if (isLegal) bowlers[bowler].balls_bowled += 1;
-      if (isWicket) bowlers[bowler].wickets += 1;
-      if (extraType === 'wide' || extraType === 'nb') {
-        bowlers[bowler].runs_conceded += 1;
-      } else if (!isWicket) {
-        bowlers[bowler].runs_conceded += (parseInt(outcome) || 0);
+      if (bowler) {
+        if (isLegal) bowlers[bowler].balls_bowled += 1;
+        if (isWicket) bowlers[bowler].wickets += 1;
+        
+        if (extraType === 'wide' || extraType === 'nb') {
+          bowlers[bowler].runs_conceded += 1;
+        } else if (!isWicket) {
+          bowlers[bowler].runs_conceded += rVal;
+        }
+      }
+    });
+  };
+
+  // Derive Live Stats for both Innings 1 and Innings 2, plus active players
+  const derivedStats = useMemo(() => {
+    if (!simResult) return null;
+
+    const startInnings = simResult.innings || (simBalls.find(b => b.innings !== undefined)?.innings) || activeInnings;
+
+    // --- 1. Compute Innings 1 Stats ---
+    let batters1 = {};
+    let bowlers1 = {};
+    if (startInnings === 1) {
+      batters1 = JSON.parse(JSON.stringify(simResult.initialBatters || {}));
+      bowlers1 = JSON.parse(JSON.stringify(simResult.initialBowlers || {}));
+      const simBalls1 = simBalls.filter(b => b.innings === 1 && !b.isOverBreak && !b.inningsTransition);
+      applyBallsToStats(simBalls1, batters1, bowlers1);
+    } else {
+      const histBalls1 = (innings && innings["1"]?.balls) || [];
+      applyBallsToStats(histBalls1, batters1, bowlers1);
+    }
+
+    // --- 2. Compute Innings 2 Stats ---
+    let batters2 = {};
+    let bowlers2 = {};
+    if (startInnings === 1) {
+      const simBalls2 = simBalls.filter(b => b.innings === 2 && !b.isOverBreak && !b.inningsTransition);
+      applyBallsToStats(simBalls2, batters2, bowlers2);
+    } else {
+      batters2 = JSON.parse(JSON.stringify(simResult.initialBatters || {}));
+      bowlers2 = JSON.parse(JSON.stringify(simResult.initialBowlers || {}));
+      const simBalls2 = simBalls.filter(b => b.innings === 2 && !b.isOverBreak && !b.inningsTransition);
+      applyBallsToStats(simBalls2, batters2, bowlers2);
+    }
+
+    // --- 3. Compute Current Active Players (for top cards display) ---
+    let striker = activeInnings === startInnings ? simResult.startStriker : "";
+    let nonStriker = activeInnings === startInnings ? simResult.startNonStriker : "";
+    let bowler = activeInnings === startInnings ? simResult.startBowler : "";
+
+    simBalls.forEach(ball => {
+      if (ball.isOverBreak) {
+        if (ball.inningsTransition) {
+          striker = "";
+          nonStriker = "";
+          bowler = "";
+        } else {
+          const temp = striker;
+          striker = nonStriker;
+          nonStriker = temp;
+        }
+        const match = ball.message?.match(/Next bowler: (.+)/);
+        if (match) {
+          bowler = match[1];
+        }
+        return;
       }
 
-      // Strike rotation logic handled by simulation_engine mostly, but we can assume currentStriker is accurate from the next ball.
+      if (ball.innings !== activeInnings) return;
+
+      striker = ball.striker;
+      if (ball.non_striker) nonStriker = ball.non_striker;
+      if (striker === nonStriker) nonStriker = "";
+      bowler = ball.bowler;
     });
 
-    return { batters, bowlers, currentStriker, currentNonStriker, currentBowler };
-  }, [simResult, simBalls]);
+    return {
+      innings1Stats: { batters: batters1, bowlers: bowlers1 },
+      innings2Stats: { batters: batters2, bowlers: bowlers2 },
+      currentActivePlayers: { striker, nonStriker, bowler }
+    };
+  }, [simResult, simBalls, activeInnings, innings]);
+
+  // Resolve display names
+  const team1Name = (innings && innings["1"]?.battingTeam) || rosters?.team1?.name || "Team 1";
+  const team2Name = (innings && (innings["2"]?.battingTeam || innings["1"]?.bowlingTeam)) || rosters?.team2?.name || "Team 2";
+
+  // Upcoming lineup helper
+  const getTeamPlayers = (teamName) => {
+    if (!rosters) return [];
+    if (rosters.team1 && rosters.team1.name?.trim().toLowerCase() === teamName.trim().toLowerCase()) {
+      return rosters.team1.players || [];
+    }
+    if (rosters.team2 && rosters.team2.name?.trim().toLowerCase() === teamName.trim().toLowerCase()) {
+      return rosters.team2.players || [];
+    }
+    return [];
+  };
+  const upcomingLineupPlayers = getTeamPlayers(team2Name);
 
   // Derive variables for rendering
   const lastElement = simBalls.length > 0 ? simBalls[simBalls.length - 1] : null;
   const isTransitioning = lastElement?.inningsTransition;
 
-  // Innings transition countdown — derived from the actual pause duration the
-  // parent uses (transitionMs), so the on-screen "3…2…1" matches reality
-  // instead of being hardcoded.
   const transitionSecs = Math.max(1, Math.round(transitionMs / 1000));
   const [countdown, setCountdown] = React.useState(transitionSecs);
   useEffect(() => {
@@ -129,29 +203,38 @@ const LiveDashboard = ({
     }
   }, [isTransitioning, transitionSecs]);
 
-  if (!simResult || !liveStats) return null;
+  if (!simResult || !derivedStats) return null;
 
-  // Actually, if lastBall is an overbreak, it might not have the full data, so we need to find the last real ball
+  const { innings1Stats, innings2Stats, currentActivePlayers } = derivedStats;
+  const activeStats = activeInnings === 1 ? innings1Stats : innings2Stats;
+  const displayStats = selectedScorecardInnings === 1 ? innings1Stats : innings2Stats;
+  const showUpcomingLineup = selectedScorecardInnings === 2 && activeInnings === 1;
+
+  // Real-time scores
   const lastRealBall = [...simBalls].reverse().find(b => !b.isOverBreak) || (lastElement || { score: simResult.startScore, wickets: simResult.startWickets, legalBalls: simResult.startBalls });
-
   const score = lastRealBall.score ?? simResult.startScore;
   const wickets = lastRealBall.wickets ?? simResult.startWickets;
   const legalBalls = lastRealBall.legalBalls ?? simResult.startBalls;
   const overs = Math.floor(legalBalls / 6) + "." + (legalBalls % 6);
   const rr = legalBalls > 0 ? ((score / legalBalls) * 6).toFixed(2) : "0.00";
-  const effectiveTarget = simResult.newTarget || target;
+  // The chase target value (known up-front in Arena's full sim). Only surface it as a
+  // "NEED x" banner / RRR once we're actually in the 2nd innings — there is no target to
+  // chase during the 1st innings.
+  const chaseTarget = simResult.newTarget || target;
+  const effectiveTarget = activeInnings === 2 ? chaseTarget : null;
   const rrr = effectiveTarget && legalBalls < 120
     ? score >= effectiveTarget ? "0.00" : (((effectiveTarget - score) / Math.max(1, 120 - legalBalls)) * 6).toFixed(2)
     : null;
 
-  const b1 = liveStats.batters[liveStats.currentStriker] || { runs: 0, balls: 0, fours: 0, sixes: 0 };
-  const b2 = liveStats.batters[liveStats.currentNonStriker] || { runs: 0, balls: 0, fours: 0, sixes: 0 };
-  const currentBowlerStats = liveStats.bowlers[liveStats.currentBowler] || { balls_bowled: 0, runs_conceded: 0, wickets: 0 };
+  // Active batter/bowler details for display cards
+  const b1 = activeStats.batters[currentActivePlayers.striker] || { runs: 0, balls: 0, fours: 0, sixes: 0 };
+  const b2 = activeStats.batters[currentActivePlayers.nonStriker] || { runs: 0, balls: 0, fours: 0, sixes: 0 };
+  const currentBowlerStats = activeStats.bowlers[currentActivePlayers.bowler] || { balls_bowled: 0, runs_conceded: 0, wickets: 0, maidens: 0 };
 
   const formatOvers = (balls) => Math.floor(balls / 6) + "." + (balls % 6);
   const getEcon = (runs, balls) => balls > 0 ? ((runs / balls) * 6).toFixed(2) : "0.00";
 
-  const ballStyle = (ball, isMajor) => {
+  const ballStyle = (ball) => {
     if (ball.isWicket) return { bg: "#ff3b5c", text: "#fff", border: "#ff3b5c" };
     if (ball.extraType) return { bg: "#1e293b", text: "#94a3b8", border: "#334155" };
     if (ball.outcome === "4") return { bg: "#00e5ff15", text: "#00e5ff", border: "#00e5ff" };
@@ -159,22 +242,11 @@ const LiveDashboard = ({
     return { bg: "transparent", text: "#e2e8f0", border: "#334155" };
   };
 
-  const [selectedBallIdx, setSelectedBallIdx] = useState(null);
-  const [outcomeOverride, setOutcomeOverride] = useState(null);
-  const [activeMobileTab, setActiveMobileTab] = useState('scorecard'); // 'scorecard' | 'commentary'
-
-  const ballsByOver = useMemo(() => {
-    const map = {};
-    if (!alternateBalls) return map;
-    for (let i = 0; i < alternateBalls.length; i++) {
-      const b = { ...alternateBalls[i], globalIdx: i };
-      if (!map[b.over]) map[b.over] = [];
-      map[b.over].push(b);
-    }
-    return map;
-  }, [alternateBalls]);
-
-  const overNums = useMemo(() => Object.keys(ballsByOver).map(Number).sort((a, b) => a - b), [ballsByOver]);
+  // Derive Team Colors for UI styling
+  const activeBattingTeam = activeInnings === 1 ? team1Name : team2Name;
+  const activeBowlingTeam = activeInnings === 1 ? team2Name : team1Name;
+  const battingColor = teamColor(activeBattingTeam);
+  const bowlingColor = teamColor(activeBowlingTeam);
 
   return (
     <div className="w-full min-h-[calc(100dvh-64px)] lg:h-[calc(100dvh-64px)] flex flex-col bg-[#02050c] overflow-y-auto lg:overflow-hidden">
@@ -213,12 +285,12 @@ const LiveDashboard = ({
       <div className="px-3 md:px-6 py-2 md:py-4 grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 shrink-0">
         <div className="flex flex-row md:contents gap-2">
           {/* Striker */}
-          <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between border-l-2 md:border-l-4 border-l-[#00ff88] relative overflow-hidden flex-1 md:flex-none">
+          <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between border-l-2 md:border-l-4 relative overflow-hidden flex-1 md:flex-none" style={{ borderLeftColor: battingColor }}>
             <div className="absolute top-0 right-0 p-1 md:p-2 opacity-[0.03] md:opacity-5 text-2xl md:text-4xl pointer-events-none">🏏</div>
             <div className="flex justify-between items-start gap-1 md:gap-2">
               <div className="flex items-center gap-1 md:gap-2 min-w-0">
-                <div className="w-1 md:w-2 h-1 md:h-2 rounded-full bg-[#00ff88] animate-pulse shrink-0"></div>
-                <h3 className="text-white font-bold text-[10px] md:text-lg truncate">{liveStats.currentStriker}</h3>
+                <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full animate-pulse shrink-0" style={{ backgroundColor: battingColor }}></div>
+                <h3 className="text-white font-bold text-[10px] md:text-lg truncate">{currentActivePlayers.striker}</h3>
               </div>
               <div className="text-right shrink-0">
                 <span className="text-sm md:text-2xl font-black text-white">{b1.runs}</span>
@@ -233,9 +305,9 @@ const LiveDashboard = ({
           </div>
 
           {/* Non-Striker */}
-          <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between flex-1 md:flex-none border-l-2 md:border-l-0 border-l-white/10">
+          <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between flex-1 md:flex-none border-l-2 md:border-l-4" style={{ borderLeftColor: battingColor + "40" }}>
             <div className="flex justify-between items-start gap-1 md:gap-2">
-              <h3 className="text-[#c4cad6] font-bold text-[10px] md:text-lg truncate">{liveStats.currentNonStriker}</h3>
+              <h3 className="text-[#c4cad6] font-bold text-[10px] md:text-lg truncate">{currentActivePlayers.nonStriker}</h3>
               <div className="text-right opacity-80 shrink-0">
                 <span className="text-sm md:text-2xl font-black text-white">{b2.runs}</span>
                 <span className="text-[#94a3b8] text-[8px] md:text-sm ml-0.5 md:ml-1 font-mono">({b2.balls})</span>
@@ -250,14 +322,14 @@ const LiveDashboard = ({
         </div>
 
         {/* Bowler */}
-        <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between border-l-2 md:border-l-4 border-l-[#ff3b5c] shrink-0 sm:col-span-1">
+        <div className="glass-light rounded-lg md:rounded-xl p-2 md:p-4 flex flex-col justify-between border-l-2 md:border-l-4 shrink-0 sm:col-span-1" style={{ borderLeftColor: bowlingColor }}>
           <div className="flex justify-between items-center md:items-start gap-1 md:gap-2">
             <div className="flex items-center gap-1 md:gap-2 min-w-0">
-              <div className="w-1 md:w-2 h-1 md:h-2 rounded-full bg-[#ff3b5c] animate-pulse shrink-0"></div>
-              <h3 className="text-white font-bold text-[10px] md:text-lg truncate">{liveStats.currentBowler}</h3>
+              <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full animate-pulse shrink-0" style={{ backgroundColor: bowlingColor }}></div>
+              <h3 className="text-white font-bold text-[10px] md:text-lg truncate">{currentActivePlayers.bowler}</h3>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-[10px] md:text-lg font-black text-[#ff3b5c] font-mono">{formatOvers(currentBowlerStats.balls_bowled)}-{currentBowlerStats.maidens}-{currentBowlerStats.runs_conceded}-{currentBowlerStats.wickets}</span>
+              <span className="text-[10px] md:text-lg font-black font-mono" style={{ color: bowlingColor }}>{formatOvers(currentBowlerStats.balls_bowled)}-{currentBowlerStats.maidens}-{currentBowlerStats.runs_conceded}-{currentBowlerStats.wickets}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4 mt-1 md:mt-2 text-[7px] md:text-xs font-mono text-[#6b7280]">
@@ -278,7 +350,7 @@ const LiveDashboard = ({
               Alter Next Ball (Over {Math.floor(legalBalls / 6)}.{ (legalBalls % 6) + 1 })
             </h3>
             <p className="text-[11px] font-mono text-[#94a3b8] mt-0.5">
-              Striker: <span className="text-[#00ff88] font-bold">{liveStats.currentStriker}</span> • Bowler: <span className="text-[#ff3b5c] font-bold">{liveStats.currentBowler}</span>
+              Striker: <span className="text-[#00ff88] font-bold">{currentActivePlayers.striker}</span> • Bowler: <span className="text-[#ff3b5c] font-bold">{currentActivePlayers.bowler}</span>
             </p>
           </div>
 
@@ -318,7 +390,7 @@ const LiveDashboard = ({
             {outcomeOverride ? (
               <button
                 onClick={() => {
-                  handleBranchSimulate(alternateBalls.length, outcomeOverride, liveStats.currentStriker, liveStats.currentNonStriker, liveStats.currentBowler);
+                  handleBranchSimulate(alternateBalls.length, outcomeOverride, currentActivePlayers.striker, currentActivePlayers.nonStriker, currentActivePlayers.bowler);
                   setOutcomeOverride(null);
                 }}
                 className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#ff3b5c] to-[#a855f7] text-white text-[10px] font-black tracking-widest uppercase hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_15px_rgba(255,59,92,0.35)]"
@@ -369,14 +441,14 @@ const LiveDashboard = ({
       <div className="flex-1 lg:overflow-hidden flex flex-col lg:flex-row px-3 md:px-6 gap-6 md:gap-6 pb-36 md:pb-24 mt-2 md:mt-4 custom-scrollbar">
 
         {/* Left: Commentary Feed */}
-        <div className={`w-full lg:flex-1 lg:flex flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-hidden shadow-2xl min-h-[450px] lg:h-full shrink-0 lg:shrink ${activeMobileTab === 'commentary' ? 'flex' : 'hidden'}`}>
+        <div className={`w-full h-[480px] lg:h-full lg:flex-1 flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-hidden shadow-2xl lg:flex ${activeMobileTab === 'commentary' ? 'flex' : 'hidden'}`}>
           <div className="px-3 md:px-5 py-2 md:py-3 border-b border-white/[0.06] flex justify-between items-center bg-black/20">
             <h3 className="text-[10px] md:text-sm font-bold text-white uppercase tracking-wider">Commentary</h3>
             <span className="text-[7px] md:text-[10px] font-mono text-[#a855f7] bg-[#a855f7]/10 px-1.5 py-0.5 rounded">Timeline Feed</span>
           </div>
 
-          <div ref={feedRef} className="flex-1 overflow-y-visible lg:overflow-y-auto p-3 md:p-5 space-y-2 md:space-y-3 scroll-smooth custom-scrollbar">
-            {[...simBalls].reverse().map((ball, i) => {
+          <div ref={feedRef} className="flex-1 overflow-y-auto p-3 md:p-5 space-y-2 md:space-y-3 scroll-smooth custom-scrollbar">
+            {[...simBalls].slice(-10).reverse().map((ball, i) => {
               if (ball.isOverBreak) {
                 return (
                   <div key={i} className="py-1.5 px-3 md:px-4 my-2 md:my-4 rounded-lg bg-gradient-to-r from-white/5 to-transparent border-l-2 border-white/20">
@@ -385,7 +457,7 @@ const LiveDashboard = ({
                 );
               }
 
-              const style = ballStyle(ball, true);
+              const style = ballStyle(ball);
               const isMajor = ball.outcome === "4" || ball.outcome === "6" || ball.outcome === "W";
               const commentary = ball.commentary || `${ball.bowler} to ${ball.striker}, ${ball.isWicket ? 'OUT!' : ball.extraType ? ball.extraType : ball.runs + ' runs'}`;
 
@@ -408,73 +480,121 @@ const LiveDashboard = ({
           </div>
         </div>
 
-        {/* Right: Detailed Scorecard */}
-        <div className={`w-full lg:w-1/2 lg:flex flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-visible shadow-2xl lg:h-full shrink-0 lg:shrink ${activeMobileTab === 'scorecard' ? 'flex' : 'hidden'}`}>
-          <div className="px-5 py-3 border-b border-white/[0.06] bg-black/20">
-            <h3 className="text-[10px] md:text-sm font-bold text-white uppercase tracking-wider">Full Scorecard</h3>
+        {/* Right: Detailed Scorecard with tabs */}
+        <div className={`w-full h-[480px] lg:h-full lg:w-1/2 flex-col bg-[#080d1e] rounded-xl md:rounded-2xl border border-white/[0.06] overflow-hidden shadow-2xl lg:flex ${activeMobileTab === 'scorecard' ? 'flex' : 'hidden'}`}>
+          <div className="flex border-b border-white/[0.06] bg-black/20" role="tablist" aria-label="Scorecard innings select">
+            <button
+              onClick={() => setSelectedScorecardInnings(1)}
+              role="tab"
+              aria-selected={selectedScorecardInnings === 1}
+              className={`flex-1 py-3 text-[10px] md:text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+                selectedScorecardInnings === 1
+                  ? "border-[#00e5ff] text-white bg-white/[0.02]"
+                  : "border-transparent text-[#6b7280] hover:text-white"
+              }`}
+            >
+              {getTeamShort(team1Name)}
+            </button>
+            <button
+              onClick={() => setSelectedScorecardInnings(2)}
+              role="tab"
+              aria-selected={selectedScorecardInnings === 2}
+              className={`flex-1 py-3 text-[10px] md:text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+                selectedScorecardInnings === 2
+                  ? "border-[#00e5ff] text-white bg-white/[0.02]"
+                  : "border-transparent text-[#6b7280] hover:text-white"
+              }`}
+            >
+              {getTeamShort(team2Name)}
+            </button>
           </div>
-          <div className="p-4 md:p-5 custom-scrollbar overflow-y-visible lg:overflow-y-auto">
-            <table className="w-full text-xs md:text-sm text-left">
-              <thead className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
-                <tr>
-                  <th scope="col" className="pb-2 font-semibold">Batter</th>
-                  <th scope="col" className="pb-2 font-semibold text-right">R</th>
-                  <th scope="col" className="pb-2 font-semibold text-right">B</th>
-                  <th scope="col" className="pb-2 font-semibold text-right hidden xs:table-cell">4s</th>
-                  <th scope="col" className="pb-2 font-semibold text-right hidden xs:table-cell">6s</th>
-                  <th scope="col" className="pb-2 font-semibold text-right">SR</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.02]">
-                {Object.entries(liveStats.batters).map(([name, stats]) => {
-                  if (stats.balls === 0 && stats.runs === 0 && !stats.out && name !== liveStats.currentStriker && name !== liveStats.currentNonStriker) return null;
-                  const isBatting = !stats.out;
-                  return (
-                    <tr key={name} className="text-[#c4cad6]">
-                      <td className="py-2 md:py-2.5 flex items-center gap-2 min-w-0">
-                        <span className={`truncate ${isBatting ? "text-white font-semibold" : "opacity-60"}`}>{name}</span>
-                        {isBatting && <span className="text-[9px] bg-white/10 px-1 rounded text-white">*</span>}
-                        {stats.out && <span className="text-[9px] text-[#ff3b5c] uppercase font-bold shrink-0">Out</span>}
-                      </td>
-                      <td className="py-2 md:py-2.5 text-right font-bold text-white">{stats.runs}</td>
-                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.balls}</td>
-                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs hidden xs:table-cell">{stats.fours}</td>
-                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs hidden xs:table-cell">{stats.sixes}</td>
-                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : "0.0"}</td>
+          
+          <div className="flex-1 p-4 md:p-5 custom-scrollbar overflow-y-auto">
+            {showUpcomingLineup ? (
+              <div className="space-y-4 animate-fade-in">
+                <div className="p-4 bg-white/5 border border-white/5 rounded-xl">
+                  <p className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-widest">Upcoming Batting Team</p>
+                  <p className="text-base font-black text-white mt-1">{team2Name}</p>
+                </div>
+                <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  {upcomingLineupPlayers.length > 0 ? (
+                    upcomingLineupPlayers.map((player, idx) => (
+                      <div key={player} className="flex items-center gap-3 px-3.5 py-2.5 bg-[#050a18]/40 rounded-xl border border-white/[0.03] hover:border-white/10 transition-colors">
+                        <span className="font-mono text-xs text-[#6b7280] w-5 text-center">{idx + 1}</span>
+                        <span className="text-white font-semibold text-xs md:text-sm">{player}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[#6b7280] text-xs font-mono py-4 text-center">No lineup data loaded yet.</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <table className="w-full text-xs md:text-sm text-left">
+                  <thead className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
+                    <tr>
+                      <th scope="col" className="pb-2 font-semibold">Batter</th>
+                      <th scope="col" className="pb-2 font-semibold text-right">R</th>
+                      <th scope="col" className="pb-2 font-semibold text-right">B</th>
+                      <th scope="col" className="pb-2 font-semibold text-right hidden xs:table-cell">4s</th>
+                      <th scope="col" className="pb-2 font-semibold text-right hidden xs:table-cell">6s</th>
+                      <th scope="col" className="pb-2 font-semibold text-right">SR</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.02]">
+                    {displayStats && Object.entries(displayStats.batters).map(([name, stats]) => {
+                      if (stats.balls === 0 && stats.runs === 0 && !stats.out && name !== currentActivePlayers.striker && name !== currentActivePlayers.nonStriker) return null;
+                      const isBatting = !stats.out;
+                      const isOnStrike = name === currentActivePlayers.striker;
+                      return (
+                        <tr key={name} className="text-[#c4cad6]">
+                          <td className="py-2 md:py-2.5 flex items-center gap-2 min-w-0">
+                            <span className={`truncate ${isBatting ? "text-white font-semibold" : "opacity-60"}`}>{name}</span>
+                            {isOnStrike && <span className="text-[9px] bg-[#00ff88]/20 px-1.5 py-0.5 rounded text-[#00ff88] font-bold border border-[#00ff88]/30">*</span>}
+                            {stats.out && <span className="text-[9px] text-[#ff3b5c] uppercase font-bold shrink-0">Out</span>}
+                          </td>
+                          <td className="py-2 md:py-2.5 text-right font-bold text-white">{stats.runs}</td>
+                          <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.balls}</td>
+                          <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs hidden xs:table-cell">{stats.fours}</td>
+                          <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs hidden xs:table-cell">{stats.sixes}</td>
+                          <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : "0.0"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
 
-            <div className="mt-6 md:mt-8 border-b border-white/[0.06] pb-2 mb-2">
-              <h3 className="text-xs md:text-sm font-bold text-white">Bowling</h3>
-            </div>
-            <table className="w-full text-xs md:text-sm text-left">
-              <thead className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
-                <tr>
-                  <th scope="col" className="pb-2 font-semibold">Bowler</th>
-                  <th scope="col" className="pb-2 font-semibold text-right">O</th>
-                  <th scope="col" className="pb-2 font-semibold text-right">R</th>
-                  <th scope="col" className="pb-2 font-semibold text-right font-bold text-white">W</th>
-                  <th scope="col" className="pb-2 font-semibold text-right">Econ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.02]">
-                {Object.entries(liveStats.bowlers).map(([name, stats]) => {
-                  if (stats.balls_bowled === 0 && stats.runs_conceded === 0) return null;
-                  return (
-                    <tr key={name} className="text-[#c4cad6]">
-                      <td className="py-2 md:py-2.5 text-white truncate">{name}</td>
-                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{formatOvers(stats.balls_bowled)}</td>
-                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.runs_conceded}</td>
-                      <td className="py-2 md:py-2.5 text-right font-bold text-white">{stats.wickets}</td>
-                      <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{getEcon(stats.runs_conceded, stats.balls_bowled)}</td>
+                <div className="mt-6 md:mt-8 border-b border-white/[0.06] pb-2 mb-2">
+                  <h3 className="text-xs md:text-sm font-bold text-white">Bowling</h3>
+                </div>
+                <table className="w-full text-xs md:text-sm text-left">
+                  <thead className="text-[9px] md:text-[10px] font-mono text-[#6b7280] uppercase border-b border-white/5">
+                    <tr>
+                      <th scope="col" className="pb-2 font-semibold">Bowler</th>
+                      <th scope="col" className="pb-2 font-semibold text-right">O</th>
+                      <th scope="col" className="pb-2 font-semibold text-right">R</th>
+                      <th scope="col" className="pb-2 font-semibold text-right font-bold text-white">W</th>
+                      <th scope="col" className="pb-2 font-semibold text-right">Econ</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.02]">
+                    {displayStats && Object.entries(displayStats.bowlers).map(([name, stats]) => {
+                      if (stats.balls_bowled === 0 && stats.runs_conceded === 0) return null;
+                      return (
+                        <tr key={name} className="text-[#c4cad6]">
+                          <td className="py-2 md:py-2.5 text-white truncate">{name}</td>
+                          <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{formatOvers(stats.balls_bowled)}</td>
+                          <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{stats.runs_conceded}</td>
+                          <td className="py-2 md:py-2.5 text-right font-bold text-white">{stats.wickets}</td>
+                          <td className="py-2 md:py-2.5 text-right font-mono text-[10px] md:text-xs">{getEcon(stats.runs_conceded, stats.balls_bowled)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -519,7 +639,9 @@ const LiveDashboard = ({
             <h2 className="text-5xl md:text-8xl lg:text-[100px] font-black tracking-tighter leading-none text-center mb-2 md:mb-4" style={{ color: teamColor(winnerDeclared.team), textShadow: `0 0 40px ${teamColor(winnerDeclared.team)}60` }}>
               {winnerDeclared.team}
             </h2>
-            <h3 className="text-xl md:text-4xl font-bold text-white uppercase tracking-[0.2em] md:tracking-widest text-center">CHAMPION</h3>
+            <h3 className="text-xl md:text-4xl font-bold text-white uppercase tracking-[0.2em] md:tracking-widest text-center mt-2">
+              {getTeamShort(winnerDeclared.team)} WON
+            </h3>
 
             <p className="text-[#c4cad6] mt-6 md:mt-8 text-sm md:text-xl font-mono text-center px-4">
               {winnerDeclared.type === "chase"
@@ -543,7 +665,7 @@ const LiveDashboard = ({
               1st Innings Complete
             </h2>
             <h1 className="text-white font-black text-5xl md:text-8xl tracking-tighter mb-4 shadow-[0_0_40px_rgba(168,85,247,0.3)]">
-              TARGET: {effectiveTarget}
+              TARGET: {chaseTarget}
             </h1>
             <p className="text-[#94a3b8] text-base md:text-xl font-mono mt-6 md:mt-8 mb-4">
               Generating Alternate Timeline...

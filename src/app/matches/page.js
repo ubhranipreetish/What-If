@@ -212,112 +212,108 @@ function MatchHubContent() {
                 <div className={`bg-[#050a18] rounded-2xl md:rounded-3xl p-5 md:p-8 mb-10 md:mb-16 border border-white/5 shadow-2xl relative md:block ${filtersExpanded ? 'block' : 'hidden'}`}>
                     <div className="absolute inset-0 bg-gradient-to-br from-[#00e5ff]/[0.02] to-transparent pointer-events-none rounded-2xl md:rounded-3xl" />
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 relative z-10">
                         
-                        {/* Column 1: Year Filter */}
+                        {/* Column 1: Season Dropdown */}
                         <div>
-                            <div className="flex items-center gap-3 mb-4 md:mb-6 border-b border-white/5 pb-2 md:pb-3">
-                                <div className="w-5 h-5 md:w-6 md:h-6 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-[10px] md:text-xs">A</div>
-                                <h3 className="text-xs md:text-sm font-mono text-white tracking-widest uppercase">Select Season</h3>
+                            <div className="flex items-center gap-3 mb-3 border-b border-white/5 pb-2">
+                                <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-[10px]">1</div>
+                                <h3 className="text-xs font-mono text-white tracking-widest uppercase">Season</h3>
                             </div>
                             
                             {loading.years ? (
-                                <div className="flex flex-wrap gap-2 animate-pulse">
-                                    {Array.from({ length: 9 }).map((_, i) => (
-                                        <div key={i} className="h-10 w-16 bg-white/5 rounded-lg"></div>
-                                    ))}
-                                </div>
+                                <div className="h-11 bg-white/5 rounded-xl animate-pulse"></div>
                             ) : (
-                                <div className="flex flex-wrap gap-2">
-                                    {years.map(year => (
-                                        <button
-                                            key={year}
-                                            onClick={() => { setSelectedYear(year); setSelectedTeam(null); }}
-                                            className={`px-3.5 md:px-4 py-2 min-h-[40px] rounded-lg font-mono text-sm transition-all duration-300 active:scale-95 ${selectedYear === year
-                                                ? "bg-[#00e5ff] text-[#050a18] font-bold shadow-[0_0_15px_rgba(0,229,255,0.4)]"
-                                                : "bg-white/5 text-[#94a3b8] hover:bg-white/10 hover:text-white border border-transparent hover:border-white/10"
-                                                }`}
-                                        >
-                                            {year}
-                                        </button>
-                                    ))}
+                                <div className="relative">
+                                    <select
+                                        value={selectedYear || ""}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setSelectedYear(val || null);
+                                            setSelectedTeam(null);
+                                        }}
+                                        className="w-full bg-[#050a18]/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00e5ff] transition-colors appearance-none pr-10 cursor-pointer"
+                                        style={{
+                                            backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
+                                            backgroundPosition: 'right 16px center',
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundSize: '16px'
+                                        }}
+                                    >
+                                        <option value="" className="bg-[#050a18] text-white">Select Season</option>
+                                        {years.map(year => (
+                                            <option key={year} value={year} className="bg-[#050a18] text-white">{year}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             )}
                         </div>
 
-                        {/* Column 2: Franchise Filter */}
+                        {/* Column 2: Franchise Dropdown */}
                         <div className={`transition-all duration-500 ${selectedYear ? "opacity-100" : "opacity-40 grayscale pointer-events-none"}`}>
-                            <div className="flex items-center gap-3 mb-4 md:mb-6 border-b border-white/5 pb-2 md:pb-3">
-                                <div className="w-5 h-5 md:w-6 md:h-6 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-[10px] md:text-xs">B</div>
-                                <h3 className="text-xs md:text-sm font-mono text-white tracking-widest uppercase">Select Team</h3>
+                            <div className="flex items-center gap-3 mb-3 border-b border-white/5 pb-2">
+                                <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-[10px]">2</div>
+                                <h3 className="text-xs font-mono text-white tracking-widest uppercase">Team</h3>
                             </div>
                             
-                            <div className="flex flex-wrap gap-2 md:gap-3">
-                                {loading.teams ? (
-                                    <div className="flex flex-wrap gap-2 md:gap-3 animate-pulse">
-                                        {Array.from({ length: 6 }).map((_, i) => (
-                                            <div key={i} className="h-11 w-28 bg-white/5 rounded-xl"></div>
-                                        ))}
-                                    </div>
-                                ) : availableTeams.length > 0 ? (
-                                    availableTeams.map(team => (
-                                        <button
-                                            key={team.short}
-                                            onClick={() => setSelectedTeam(team)}
-                                            className={`px-3.5 md:px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-bold transition-all duration-300 active:scale-95 flex items-center gap-2 md:gap-3 ${selectedTeam?.short === team.short
-                                                ? "bg-white/10 text-white border-transparent shadow-lg transform scale-105"
-                                                : "bg-transparent border border-white/10 text-[#94a3b8] hover:bg-white/5 hover:text-white"
-                                                }`}
-                                            style={{
-                                                borderColor: selectedTeam?.short === team.short ? team.color : "",
-                                                backgroundColor: selectedTeam?.short === team.short ? `${team.color}20` : "",
-                                            }}
-                                        >
-                                            <span className="w-2 md:w-2.5 h-2 md:h-2.5 rounded-full shadow-sm" style={{ backgroundColor: team.color }} />
-                                            {team.name}
-                                        </button>
-                                    ))
-                                ) : (
-                                    <p className="text-[10px] md:text-xs font-mono text-[#6b7280] tracking-wider py-2">Awaiting Season Selection...</p>
-                                )}
+                            <div className="relative">
+                                <select
+                                    value={selectedTeam?.name || ""}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        const teamObj = availableTeams.find(t => t.name === val);
+                                        setSelectedTeam(teamObj || null);
+                                    }}
+                                    disabled={!selectedYear}
+                                    className="w-full bg-[#050a18]/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00e5ff] transition-colors appearance-none pr-10 disabled:cursor-not-allowed cursor-pointer"
+                                    style={{
+                                        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
+                                        backgroundPosition: 'right 16px center',
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundSize: '16px'
+                                    }}
+                                >
+                                    <option value="" className="bg-[#050a18] text-white">Select Team</option>
+                                    {availableTeams.map(team => (
+                                        <option key={team.short} value={team.name} className="bg-[#050a18] text-white">{team.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Column 3: Opponent Filter */}
-                    {allMatches.length > 0 && (
-                        <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-white/5 animate-in slide-in-from-bottom-4 fade-in duration-500 relative z-10">
-                            <div className="flex items-center justify-between mb-4 md:mb-6 border-b border-white/5 pb-2 md:pb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-5 h-5 md:w-6 md:h-6 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-[10px] md:text-xs">C</div>
-                                    <h3 className="text-xs md:text-sm font-mono text-white tracking-widest uppercase">Select Opponent</h3>
-                                </div>
-                                <span className="text-[9px] md:text-[10px] font-mono text-[#00e5ff]/50 px-2 py-1 bg-[#00e5ff]/10 rounded uppercase tracking-widest">
-                                    {availableOpponents.length} Opponents
-                                </span>
+                        {/* Column 3: Opponent Dropdown */}
+                        <div className={`transition-all duration-500 ${allMatches.length > 0 ? "opacity-100" : "opacity-40 grayscale pointer-events-none"}`}>
+                            <div className="flex items-center gap-3 mb-3 border-b border-white/5 pb-2">
+                                <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center text-[#6b7280] font-mono text-[10px]">3</div>
+                                <h3 className="text-xs font-mono text-white tracking-widest uppercase">Opponent</h3>
                             </div>
                             
-                            <div className="flex flex-wrap gap-2 md:gap-3">
-                                {availableOpponents.map(opp => (
-                                    <button
-                                        key={opp.name}
-                                        onClick={() => setSelectedOpponent(selectedOpponent?.name === opp.name ? null : opp)}
-                                        className={`px-3.5 md:px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-bold transition-all duration-300 active:scale-95 flex items-center gap-2 md:gap-3 ${selectedOpponent?.name === opp.name
-                                            ? "bg-white/10 text-white border-transparent shadow-lg transform scale-105"
-                                            : "bg-transparent border border-white/10 text-[#94a3b8] hover:bg-white/5 hover:text-white"
-                                            }`}
-                                        style={{
-                                            borderColor: selectedOpponent?.name === opp.name ? opp.color : "",
-                                            backgroundColor: selectedOpponent?.name === opp.name ? `${opp.color}20` : "",
-                                        }}
-                                    >
-                                        <span className="w-2 md:w-2.5 h-2 md:h-2.5 rounded-full shadow-sm" style={{ backgroundColor: opp.color }} />
-                                        {opp.name}
-                                    </button>
-                                ))}
+                            <div className="relative">
+                                <select
+                                    value={selectedOpponent?.name || ""}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        const oppObj = availableOpponents.find(o => o.name === val);
+                                        setSelectedOpponent(oppObj || null);
+                                    }}
+                                    disabled={allMatches.length === 0}
+                                    className="w-full bg-[#050a18]/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00e5ff] transition-colors appearance-none pr-10 disabled:cursor-not-allowed cursor-pointer"
+                                    style={{
+                                        backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
+                                        backgroundPosition: 'right 16px center',
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundSize: '16px'
+                                    }}
+                                >
+                                    <option value="" className="bg-[#050a18] text-white">All Opponents</option>
+                                    {availableOpponents.map(opp => (
+                                        <option key={opp.name} value={opp.name} className="bg-[#050a18] text-white">{opp.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
-                    )}
+
+                    </div>
 
                     {/* Clear Filters */}
                     {(selectedYear !== null || selectedTeam !== null) && (

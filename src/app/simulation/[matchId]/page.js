@@ -1267,7 +1267,7 @@ function SimulationPageContent() {
               </div>
 
               <div className="space-y-2">
-                {simBalls.map((ball, i) => {
+                {simBalls.slice(-10).map((ball, i) => {
                   if (ball.isOverBreak) {
                      return (
                        <div key={i} className="py-3 px-4 my-2 rounded-xl bg-gradient-to-r from-[#00e5ff]/10 to-[#a855f7]/10 border border-[#a855f7]/30 text-center animate-fade-in shadow-lg">

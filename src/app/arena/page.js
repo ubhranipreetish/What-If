@@ -26,6 +26,8 @@ export default function ArenaPage() {
     const [lineupData, setLineupData] = useState(null);
     const [simError, setSimError] = useState(""); // inline sim-failure message
 
+    const [activeInnings, setActiveInnings] = useState(1);
+
     // Auto-dismiss the sim-failure toast.
     useEffect(() => {
         if (!simError) return;
@@ -91,6 +93,7 @@ export default function ArenaPage() {
             
             if (next.inningsTransition) {
                 delay = 4000;
+                setActiveInnings(2);
             }
 
             // Over break injection
@@ -189,6 +192,7 @@ export default function ArenaPage() {
         resultsRef.current = null;
         setDisplayBalls([]);
         setWinnerDeclared(null);
+        setActiveInnings(1);
         setPhase('setup');
     };
 
@@ -214,31 +218,34 @@ export default function ArenaPage() {
                 </header>
             )}
 
-            {/* Rendering the appropriate phase */}
-            <div className="pt-16 lg:pt-0">
-                {phase === 'setup' && <ArenaSetup onComplete={handleSetupComplete} />}
+            {/* Rendering the appropriate phase — the top padding clears the absolute
+                header, so it only applies to the phases that actually show that header. */}
+            {(phase === 'setup' || phase === 'draft' || phase === 'lineups') && (
+                <div className="pt-16 lg:pt-0">
+                    {phase === 'setup' && <ArenaSetup onComplete={handleSetupComplete} />}
 
-                {phase === 'draft' && (
-                    <ArenaDraft
-                        p1={p1} p2={p2}
-                        firstPick={firstPick}
-                        onDraftComplete={handleDraftComplete}
-                    />
-                )}
+                    {phase === 'draft' && (
+                        <ArenaDraft
+                            p1={p1} p2={p2}
+                            firstPick={firstPick}
+                            onDraftComplete={handleDraftComplete}
+                        />
+                    )}
 
-                {phase === 'lineups' && (
-                    <ArenaLineups
-                        p1={p1} p2={p2}
-                        t1Roster={t1Roster} t2Roster={t2Roster}
-                        onLineupsComplete={handleLineupsComplete}
-                    />
-                )}
-            </div>
+                    {phase === 'lineups' && (
+                        <ArenaLineups
+                            p1={p1} p2={p2}
+                            t1Roster={t1Roster} t2Roster={t2Roster}
+                            onLineupsComplete={handleLineupsComplete}
+                        />
+                    )}
+                </div>
+            )}
 
-            {phase === 'loading' && <LoadingSequence onComplete={handleLoadingComplete} />}
+            {phase === 'loading' && <LoadingSequence onComplete={handleLoadingComplete} isArena={true} />}
 
             {phase === 'simulating' && results && (
-                <div className="h-screen w-full relative flex flex-col">
+                <div className="min-h-screen lg:h-screen w-full relative flex flex-col">
                     {/* Arena Header */}
                     <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#050a18]/90 backdrop-blur-md shrink-0">
                         <div className="max-w-7xl mx-auto px-4 md:px-6 py-2 md:py-3 grid grid-cols-3 items-center">
@@ -285,7 +292,7 @@ export default function ArenaPage() {
                     </div>
 
                     {/* LiveDashboard */}
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 lg:overflow-hidden">
                         <LiveDashboard
                             simResult={results}
                             simBalls={displayBalls}
@@ -300,9 +307,15 @@ export default function ArenaPage() {
                             simSpeed={simSpeed}
                             setSpeed={setSpeed}
                             teamColor={teamColor}
-                            activeInnings={1}
-                            innings={1}
-                            rosters={{}}
+                            activeInnings={activeInnings}
+                            innings={{
+                                "1": { battingTeam: results.battingFirst, bowlingTeam: results.battingSecond, balls: [] },
+                                "2": { battingTeam: results.battingSecond, bowlingTeam: results.battingFirst, balls: [] }
+                            }}
+                            rosters={{
+                                team1: { name: p1, players: t1Roster.map(p => p.name) },
+                                team2: { name: p2, players: t2Roster.map(p => p.name) }
+                            }}
                             isArena={true}
                             transitionMs={4000}
                         />

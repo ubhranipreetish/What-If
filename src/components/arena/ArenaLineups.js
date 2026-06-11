@@ -79,7 +79,7 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
                 {phase === "toss" ? (
                     <GlowButton onClick={handleToss} className="bg-[#ffd700] !text-black px-12 py-6 text-xl">FLIP COIN</GlowButton>
                 ) : (
-                    <div className="w-32 h-32 rounded-full bg-[#ffd700] animate-bounce flex items-center justify-center text-black font-black text-2xl shadow-[0_0_50px_#ffd700]">
+                    <div className="w-36 h-36 rounded-full bg-[#ffd700] animate-bounce flex items-center justify-center text-black font-black text-lg shadow-[0_0_50px_#ffd700] p-4 text-center">
                         FLIPPING...
                     </div>
                 )}
@@ -105,8 +105,8 @@ export default function ArenaLineups({ p1, p2, t1Roster, t2Roster, onLineupsComp
 
     const TeamLineup = ({ name, batOrder, bowlOrder, teamId, isBattingFirst }) => (
         <div className="glass p-4 sm:p-6 rounded-3xl border border-white/5 flex-1 max-h-[75vh] flex flex-col overflow-hidden">
-            <h3 className="text-xl sm:text-2xl font-black text-white truncate">{name}'S XI</h3>
-            <p className="text-[9px] sm:text-[10px] font-mono tracking-widest uppercase mb-4 border-b border-white/10 pb-2" style={{ color: teamId === 1 ? '#00e5ff' : '#ff3b5c' }}>
+            <h3 className="text-xl sm:text-2xl font-black text-white truncate shrink-0 leading-tight">{name}'S XI</h3>
+            <p className="text-[9px] sm:text-[10px] font-mono tracking-widest uppercase mb-4 border-b border-white/10 pb-2 shrink-0" style={{ color: teamId === 1 ? '#00e5ff' : '#ff3b5c' }}>
                 {isBattingFirst ? 'Batting First' : 'Bowling First'}
             </p>
             

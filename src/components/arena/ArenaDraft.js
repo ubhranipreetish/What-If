@@ -141,19 +141,19 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
     return (
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 md:py-6 flex flex-col min-h-[100dvh] lg:h-[calc(100dvh-80px)]">
 
-            {/* Draft Header */}
-            <div className="text-center mb-4 shrink-0">
+            {/* Desktop Draft Header (shown only on lg screens) */}
+            <div className="hidden lg:flex flex-col items-center mb-4 shrink-0">
                 {!isDraftComplete ? (
-                    <div className="inline-flex flex-wrap items-center justify-center gap-2 md:gap-3 px-4 md:px-5 py-2 md:py-2.5 rounded-full glass-light border border-white/10 shadow-lg">
+                    <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full glass-light border border-white/10 shadow-lg">
                         <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: activeTeamId === 1 ? '#00e5ff' : '#ff3b5c' }} />
-                        <span className="text-[10px] md:text-xs font-bold text-white tracking-wide uppercase">
-                            ON THE CLOCK: <span style={{ color: activeTeamId === 1 ? '#00e5ff' : '#ff3b5c' }}>{activePlayerName}</span>
+                        <span className="text-xs font-bold text-white tracking-wide uppercase">
+                            <span style={{ color: activeTeamId === 1 ? '#00e5ff' : '#ff3b5c' }}>{activePlayerName}</span> Chance to pick
                         </span>
-                        <span className="text-[9px] md:text-[10px] text-[#6b7280] font-mono border-l border-white/20 pl-2 md:pl-3 ml-1 md:ml-0">PICK {currentPickIndex + 1}/22</span>
+                        <span className="text-[10px] text-[#6b7280] font-mono border-l border-white/20 pl-3">PICK {currentPickIndex + 1}/22</span>
                     </div>
                 ) : (
                     <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-[#00ff88]/20 border border-[#00ff88]/50 shadow-[0_0_20px_rgba(0,255,136,0.2)]">
-                        <span className="text-xs md:text-sm font-bold text-[#00ff88] tracking-widest uppercase">
+                        <span className="text-xs font-bold text-[#00ff88] tracking-widest uppercase">
                             DRAFT COMPLETE. LOCKING...
                         </span>
                     </div>
@@ -169,6 +169,37 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
                     </div>
                 )}
             </div>
+
+            {/* Mobile/Tablet Floating Draft Box (shown only on < lg screens) */}
+            {!isDraftComplete ? (
+                <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[45] w-[92vw] max-w-sm bg-[#050a18]/90 backdrop-blur-md border border-white/10 px-4 py-3 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.5)] flex items-center justify-between animate-slide-up">
+                    <div className="flex items-center gap-2.5">
+                        <span className="w-2.5 h-2.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: activeTeamId === 1 ? '#00e5ff' : '#ff3b5c' }} />
+                        <div className="min-w-0">
+                            <p className="text-xs font-bold text-white leading-tight">
+                                <span style={{ color: activeTeamId === 1 ? '#00e5ff' : '#ff3b5c' }}>{activePlayerName}</span> Chance to pick
+                            </p>
+                            <p className="text-[9px] text-[#94a3b8] leading-none mt-0.5 font-mono">
+                                PICK {currentPickIndex + 1}/22
+                            </p>
+                        </div>
+                    </div>
+                    {currentPickIndex > 0 && (
+                        <button
+                            onClick={handleUndo}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8] hover:text-white border border-white/10 bg-white/5 transition-all active:scale-95 shrink-0"
+                        >
+                            ↩ Undo
+                        </button>
+                    )}
+                </div>
+            ) : (
+                <div className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[45] w-[92vw] max-w-sm bg-[#00ff88]/20 backdrop-blur-md border border-[#00ff88]/50 px-4 py-3 rounded-2xl shadow-[0_0_20px_rgba(0,255,136,0.2)] flex items-center justify-center animate-slide-up">
+                    <span className="text-xs font-bold text-[#00ff88] tracking-widest uppercase">
+                        DRAFT COMPLETE. LOCKING...
+                    </span>
+                </div>
+            )}
 
             {/* Mobile Tab Selector */}
             {!isDraftComplete && (
@@ -213,7 +244,7 @@ export default function ArenaDraft({ p1, p2, firstPick, onDraftComplete }) {
             )}
 
             {/* Split Screen Draft UI */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 overflow-y-auto lg:overflow-hidden pb-4 lg:pb-0">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 overflow-y-auto lg:overflow-hidden pb-20 lg:pb-0">
 
                 {/* Team 1 Panel */}
                 <div className={`glass rounded-2xl p-4 border border-white/5 flex flex-col relative min-h-[300px] lg:h-auto lg:flex ${activeMobileTab === 'p1' || isDraftComplete ? 'flex' : 'hidden'}`}>

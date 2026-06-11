@@ -72,14 +72,14 @@ export default function MatchDetailPage() {
     <div className="min-h-screen grid-bg">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#050a18]/90 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <Link href="/" aria-label="CounterPlay home" className="text-[#00e5ff] font-black text-lg tracking-tight hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] transition-all">◈ COUNTERPLAY</Link>
-          <div className="flex items-center gap-3">
-            <span className="px-3 py-1 rounded-lg font-black text-xs text-white" style={{ background: team1Color + "33", border: `1px solid ${team1Color}55` }}>{ts(team1Name)}</span>
-            <span className="text-[#6b7280] text-xs font-black italic">VS</span>
-            <span className="px-3 py-1 rounded-lg font-black text-xs text-white" style={{ background: team2Color + "33", border: `1px solid ${team2Color}55` }}>{ts(team2Name)}</span>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
+          <Link href="/" aria-label="CounterPlay home" className="shrink-0 text-[#00e5ff] font-black text-base sm:text-lg tracking-tight hover:drop-shadow-[0_0_8px_rgba(0,229,255,0.8)] transition-all">◈<span className="hidden sm:inline"> COUNTERPLAY</span></Link>
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+            <span className="px-2 sm:px-3 py-1 rounded-lg font-black text-[10px] sm:text-xs text-white shrink-0" style={{ background: team1Color + "33", border: `1px solid ${team1Color}55` }}>{ts(team1Name)}</span>
+            <span className="text-[#6b7280] text-[10px] sm:text-xs font-black italic shrink-0">VS</span>
+            <span className="px-2 sm:px-3 py-1 rounded-lg font-black text-[10px] sm:text-xs text-white shrink-0" style={{ background: team2Color + "33", border: `1px solid ${team2Color}55` }}>{ts(team2Name)}</span>
           </div>
-          <button onClick={() => router.push("/matches")} className="text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#ff3b5c] transition-colors border border-[#6b7280]/20 hover:border-[#ff3b5c]/40 px-3 py-1.5 rounded-full">← BACK</button>
+          <button onClick={() => router.push("/matches")} className="shrink-0 text-[10px] font-mono tracking-widest text-[#6b7280] hover:text-[#ff3b5c] transition-colors border border-[#6b7280]/20 hover:border-[#ff3b5c]/40 px-2.5 sm:px-3 py-1.5 rounded-full">←<span className="hidden xs:inline"> BACK</span></button>
         </div>
       </header>
 

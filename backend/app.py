@@ -255,7 +255,7 @@ def simulate_arena_full(req: ArenaFullRequest):
         )
         
         # ── Enrich ball log with fields LiveDashboard expects ──
-        def enrich_log(raw_log, start_balls=0):
+        def enrich_log(raw_log, inn_val, start_balls=0):
             enriched = []
             legal_count = start_balls
             for ball in raw_log:
@@ -292,10 +292,11 @@ def simulate_arena_full(req: ArenaFullRequest):
                     "legalBalls": legal_count,
                     "aggression": ball.get('aggression', 1.0),
                     "confidence": ball.get('confidence', 1.0),
+                    "innings": inn_val,
                 })
             return enriched
         
-        log_1 = enrich_log(raw_log_1, 0)
+        log_1 = enrich_log(raw_log_1, 1, 0)
         
         # Target
         target = final_score_1 + 1
@@ -306,7 +307,8 @@ def simulate_arena_full(req: ArenaFullRequest):
             "target": target,
             "battingTeam": batting_second_name,
             "bowlingTeam": batting_first_name,
-            "innings1Score": f"{final_score_1}/{final_wickets_1}"
+            "innings1Score": f"{final_score_1}/{final_wickets_1}",
+            "innings": 1
         })
         
         # ── Innings 2 ──
@@ -324,7 +326,7 @@ def simulate_arena_full(req: ArenaFullRequest):
             state_2, lineup_2, bowling_plan_2, num_sims=50, seed=seed+1
         )
         
-        log_2 = enrich_log(raw_log_2, 0)
+        log_2 = enrich_log(raw_log_2, 2, 0)
         full_log = log_1 + log_2
         
         # ── Determine winner ──
@@ -338,6 +340,7 @@ def simulate_arena_full(req: ArenaFullRequest):
         
         return {
             "success": True,
+            "innings": 1,
             # simResult-compatible fields
             "startScore": 0,
             "startWickets": 0,
@@ -469,11 +472,9 @@ def get_match_balls(match_id: str):
 
         balls = []
         for _, row in inn_df.iterrows():
-            extra_type = None
-            if 'wides' in raw_df.columns:
-                raw_row_mask = (raw_df['match_id'] == bb_id) & (raw_df['innings'] == inn_num) & (raw_df['ball'] == row['over'] + row['ball_no'] / 10)
-            else:
-                raw_row_mask = None
+            w_val = row.get('wides', 0)
+            n_val = row.get('noballs', 0)
+            extra_type = 'wide' if w_val > 0 else ('nb' if n_val > 0 else None)
 
             balls.append({
                 "over": int(row['over']),
@@ -489,6 +490,8 @@ def get_match_balls(match_id: str):
                 "cumWickets": int(row['cumulative_wickets']),
                 "legalBalls": int(row['legal_balls_bowled']),
                 "phase": str(row['phase']),
+                "extraType": extra_type,
+                "player_dismissed": str(row['player_dismissed']) if pd.notna(row.get('player_dismissed')) else None,
             })
 
         result[str(inn_num)] = {
@@ -867,6 +870,7 @@ async def simulate_from_ball(match_id: str, request: ModificationRequest):
 
         return {
             "success": True,
+            "innings": request.innings,
             "startScore": state['score'],
             "startWickets": state['wickets'],
             "startBalls": state['legal_balls_bowled'],

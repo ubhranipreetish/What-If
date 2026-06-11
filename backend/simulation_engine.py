@@ -71,7 +71,7 @@ def clean_and_prepare_data(deliveries_path, matches_path=None, remove_super_over
         'cumulative_wickets', 'legal_balls_bowled', 'balls_remaining', 'batting_team', 
         'bowling_team', 'striker', 'non_striker', 'bowler', 'runs_off_bat', 'extras', 
         'total_runs_this_ball', 'is_wicket', 'venue', 'wides', 'noballs', 'byes', 'legbyes',
-        'is_legal_delivery'
+        'is_legal_delivery', 'player_dismissed'
     ]
 
     if 'match_winner' in df.columns:
@@ -131,27 +131,30 @@ def get_match_state(df_clean, match_id, innings, over, ball_no):
     initial_bowlers = {}
 
     if not prev_rows.empty:
+        # Get set of all dismissed batters so far in this innings
+        dismissed_set = set(prev_rows['player_dismissed'].dropna().unique())
+        
         # Batters
         for striker_name, grp in prev_rows.groupby('striker'):
             runs = int(grp['runs_off_bat'].sum())
             balls = int((grp['wides'] == 0).sum())
             fours = int((grp['runs_off_bat'] == 4).sum())
             sixes = int((grp['runs_off_bat'] == 6).sum())
-            initial_batters[striker_name] = {'runs': runs, 'balls': balls, 'fours': fours, 'sixes': sixes}
+            is_out = striker_name in dismissed_set
+            initial_batters[striker_name] = {'runs': runs, 'balls': balls, 'fours': fours, 'sixes': sixes, 'out': is_out}
             
         # Non-strikers might not have faced a ball
         for ns in prev_rows['non_striker'].unique():
-            if ns not in initial_batters:
-                initial_batters[ns] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+            if pd.notna(ns) and ns not in initial_batters:
+                is_out = ns in dismissed_set
+                initial_batters[ns] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0, 'out': is_out}
 
         # Bowlers
         for bowler_name, grp in prev_rows.groupby('bowler'):
             # Calculate balls bowled (wides and noballs don't count towards legal balls)
-            # Actually, in the dataset, is_legal_delivery tracks this
             balls_bowled = int(grp['is_legal_delivery'].sum())
             
             # Runs conceded (Total runs minus byes and legbyes)
-            # We don't penalize bowler for byes/legbyes
             runs_conceded = int((grp['total_runs_this_ball'] - grp['byes'] - grp['legbyes']).sum())
             wickets = int(grp['is_wicket'].sum())
             
@@ -172,9 +175,15 @@ def get_match_state(df_clean, match_id, innings, over, ball_no):
 
     # Ensure current striker/non_striker/bowler are in the dicts
     if target_row['striker'] not in initial_batters:
-        initial_batters[target_row['striker']] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+        initial_batters[target_row['striker']] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0, 'out': False}
+    else:
+        initial_batters[target_row['striker']]['out'] = False
+
     if target_row['non_striker'] not in initial_batters:
-        initial_batters[target_row['non_striker']] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0}
+        initial_batters[target_row['non_striker']] = {'runs': 0, 'balls': 0, 'fours': 0, 'sixes': 0, 'out': False}
+    else:
+        initial_batters[target_row['non_striker']]['out'] = False
+
     if target_row['bowler'] not in initial_bowlers:
         initial_bowlers[target_row['bowler']] = {'balls_bowled': 0, 'runs_conceded': 0, 'wickets': 0, 'maidens': 0}
 

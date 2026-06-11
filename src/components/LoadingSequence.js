@@ -1,8 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export default function LoadingSequence({ onComplete }) {
-    const sequences = [
+export default function LoadingSequence({ onComplete, isArena = false }) {
+    const sequences = isArena ? [
+        "Preparing the pitch...",
+        "Analyzing team synergy and matchups...",
+        "Running 10,000 Monte Carlo battle simulations...",
+        "Calculating optimal bowler strategies...",
+        "Readying the players for battle...",
+        "Initializing battle matrix..."
+    ] : [
         "Initializing Bayesian Profiles...",
         "Evaluating historical parameter matrices...",
         "Generating alternate timelines...",
@@ -38,7 +45,7 @@ export default function LoadingSequence({ onComplete }) {
             clearInterval(interval);
             clearInterval(progressInterval);
         };
-    }, [onComplete]);
+    }, [onComplete, sequences.length]);
 
     return (
         <div className="fixed inset-0 z-[100] bg-[#050a18]/95 backdrop-blur-xl flex flex-col items-center justify-center animate-fade-in grid-bg">
@@ -54,7 +61,7 @@ export default function LoadingSequence({ onComplete }) {
                 </div>
 
                 <h2 className="text-2xl font-black text-white mb-2 tracking-widest drop-shadow-md uppercase">
-                    Rewriting Reality
+                    {isArena ? "Ready to Battle" : "Rewriting Reality"}
                 </h2>
                 <div className="h-6 overflow-hidden relative">
                     <p className="text-sm font-mono text-[#00e5ff] animate-pulse">
