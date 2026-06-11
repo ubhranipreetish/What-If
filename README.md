@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 🏏 CounterPlay: The What-If Engine
+The **CounterPlay** is an interactive, state-of-the-art predictive cricket simulation platform. It empowers users to explore alternate realities in IPL match history or simulate complete custom matches from scratch.
 
-## Getting Started
+By pinpointing any turning point in historical IPL matches, overriding the ball's outcome, and invoking a custom simulation engine, users can watch the **butterfly effect** ripple through the rest of the game in real-time.
 
-First, run the development server:
+---
 
+## 🚀 Key Features
+
+### 1. The Time Machine (Match Archives)
+* **Historic Matches Browse**: Filter through years of IPL history with responsive, dynamic Season, Team, and Opponent filters.
+* **Match Timeline Scrubber**: Select any ball of a real match to see its historical stats and commentary.
+* **Override & Simulate**: Change the selected ball's outcome (dot, runs, boundary, wicket, wide, or no-ball) and instantly trigger the predictive engine to simulate the rest of the match.
+
+### 2. The Custom Battle Arena
+* **Snake Draft System**: Draft custom squads of IPL legends (22 picks total) with dynamic budget constraints ($M) and role validation (minimum batsmen, wicketkeepers, all-rounders, bowlers).
+* **Toss & Strategy**: Flip a coin to determine batting/bowling decisions and organize custom batting and bowling orders.
+* **Full Live Sim**: Play back a complete ball-by-ball simulation of custom XIs, complete with dynamically generated live commentary and statistics.
+
+### 3. Real-Time Playback Dashboard
+* **Dynamic Team Accents**: Renders batter and bowler metrics with border accents matching their respective franchise color profiles.
+* **Innings Tab Selector**: Toggle scorecards between Innings 1 and Innings 2 at any point. If Innings 2 hasn't started yet, it displays the upcoming batting lineup.
+* **Compact Commentary**: Live commentary feed is automatically sliced to show the last 10 balls, keeping the workspace clutter-free.
+* **Responsive Visuals**: Mobile-floating pick boxes, scrollable dashboard columns, and adaptive layouts make it fully responsive for phones, tablets, and desktops.
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+### 📂 Backend: FastAPI & Python Simulation Engine
+* **FastAPI Server** (`backend/app.py`): Exposes API routes for match archives metadata, rosters, and simulation playback logs.
+* **Simulation Engine** (`backend/simulation_engine.py`): A simulator utilizing representative historical trajectories, player stats, and state-machine transitions.
+* **Data Prep** (`backend/data_preprocessor.py`): Cleans and indexes ball-by-ball records from IPL datasets (`IPL_ball_by_ball_cleaned.csv`).
+
+### 📂 Frontend: Next.js & Tailwind CSS
+* **Routing & Pages**: App router pages for dashboard simulation, Match browsing hub, and the Custom Arena.
+* **State Management**: Live React hooks control audio/visual play states, branch simulation triggers, draft index queues, and countdown transitions.
+* **Styling**: Tailwind CSS combined with modern CSS glassmorphism, responsive fixed layouts, and smooth animations.
+
+---
+
+## ⚙️ Setup & Installation
+
+### Prerequisites
+* **Node.js** (v18 or higher)
+* **Python** (v3.9 or higher)
+
+### 1. Backend Setup
+Create a virtual environment, activate it, and install python dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Navigate to the backend directory
+cd backend
+
+# Create a virtual environment
+python3 -m venv venv
+
+# Activate on Mac/Linux:
+source venv/bin/path/activate
+
+# Or on Windows:
+venv\Scripts\activate
+
+# Install requirements
+pip install -r requirements.txt
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Run the Application
+You can run both the frontend and backend easily from the project root:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+* **Start the Python Backend**:
+  ```bash
+  npm run backend
+  ```
+  *(Starts the FastAPI server on `http://localhost:8000`)*
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+* **Start the Next.js Frontend**:
+  ```bash
+  npm run dev
+  ```
+  *(Starts the client development server on `http://localhost:3000`)*
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open **[http://localhost:3000](http://localhost:3000)** in your browser to start rewriting history!
